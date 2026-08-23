@@ -135,6 +135,11 @@ configure_passwordless_sudo() {
 
 configure_locales() {
   log "Generating English and Japanese UTF-8 locales"
+
+  # This base image enables every language through locale-gen's supplemental
+  # input directory. Clear that generated selection so locale-gen honors the
+  # two explicit entries below rather than compiling hundreds of locales.
+  find /var/lib/locales/supported.d -maxdepth 1 -type f -delete
   select_locales
   locale-gen
 }
