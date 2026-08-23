@@ -46,7 +46,13 @@ RUN /opt/image-build/install-system-packages.sh
 # recursive chown here: changing metadata for the whole profile duplicates its
 # contents in a new image layer.
 RUN test "$(stat -c '%u:%g' /home/kasm-default-profile)" = "1000:0" && \
-    install -d -m 0755 -o 1000 -g 0 /opt/pyenv
+    rm -rf /home/kasm-default-profile/.nvm && \
+    install -d -m 0755 -o 1000 -g 0 \
+      /opt/pyenv \
+      /home/kasm-default-profile/.nvm \
+      /home/kasm-default-profile/.local/bin \
+      /home/kasm-default-profile/.cargo/bin \
+      /home/kasm-default-profile/.rustup
 
 USER 1000
 
