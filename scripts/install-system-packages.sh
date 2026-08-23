@@ -67,7 +67,7 @@ install_base_packages() {
     zlib1g-dev
 
   log "Installing desktop utilities and Japanese input support"
-  apt_get install -y \
+  apt_get install -y --no-install-recommends \
     dbus-x11 \
     emacs \
     exo-utils \
@@ -100,7 +100,7 @@ install_github_cli() {
     > /etc/apt/sources.list.d/github-cli.list
 
   apt_get update
-  apt_get install -y gh
+  apt_get install -y --no-install-recommends gh
 }
 
 configure_passwordless_sudo() {
