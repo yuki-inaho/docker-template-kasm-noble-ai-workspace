@@ -36,10 +36,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 WORKDIR ${HOME}
 
-COPY scripts/ /opt/image-build/
+COPY --chmod=0755 scripts/install-system-packages.sh /opt/image-build/install-system-packages.sh
 
-RUN chmod 0755 /opt/image-build/*.sh && \
-    /opt/image-build/install-system-packages.sh
+RUN /opt/image-build/install-system-packages.sh
 
 # Kasm copies /home/kasm-default-profile into /home/kasm-user on first start.
 # User-scoped tools therefore have to be installed into the default profile.
@@ -51,6 +50,10 @@ RUN test "$(stat -c '%u:%g' /home/kasm-default-profile)" = "1000:0" && \
 
 USER 1000
 
+COPY --chmod=0755 scripts/install-user-tools.sh /opt/image-build/install-user-tools.sh
+
+# Stable, large toolchains go first. Updating the agent CLIs below therefore
+# reuses this layer instead of reinstalling Rust, Node, Poetry, and uv.
 RUN NODE_VERSION="${NODE_VERSION}" \
     NVM_VERSION="${NVM_VERSION}" \
     POETRY_VERSION="${POETRY_VERSION}" \
@@ -58,10 +61,16 @@ RUN NODE_VERSION="${NODE_VERSION}" \
     RUST_VERSION="${RUST_VERSION}" \
     JUST_VERSION="${JUST_VERSION}" \
     JUST_SHA256="${JUST_SHA256}" \
-    CODEX_VERSION="${CODEX_VERSION}" \
+    /opt/image-build/install-user-tools.sh foundation
+
+# These CLIs intentionally track their latest releases and are kept in the
+# final user-tools layer so their updates do not invalidate the stable layer.
+RUN CODEX_VERSION="${CODEX_VERSION}" \
     CLAUDE_VERSION="${CLAUDE_VERSION}" \
     RTK_VERSION="${RTK_VERSION}" \
-    /opt/image-build/install-user-tools.sh
+    /opt/image-build/install-user-tools.sh agents
+
+COPY --chmod=0755 scripts/configure-default-profile.sh /opt/image-build/configure-default-profile.sh
 
 RUN /opt/image-build/configure-default-profile.sh
 
@@ -70,6 +79,8 @@ USER root
 # Preserve Kasm's existing long-running custom startup script, then wrap it with
 # our one-time runtime initialization. The original script must remain alive or
 # Kasm will restart it continuously.
+COPY --chmod=0755 scripts/runtime-init.sh scripts/custom-startup.sh scripts/smoke-test.sh /opt/image-build/
+
 RUN install -m 0755 /opt/image-build/runtime-init.sh /dockerstartup/runtime-init.sh && \
     if [[ ! -f /dockerstartup/custom_startup.base.sh ]]; then \
       if [[ -f /dockerstartup/custom_startup.sh ]]; then \
@@ -118,10 +129,9 @@ ARG CHROMIUM_REVISION
 
 USER root
 
-COPY scripts/install-chromium.sh /tmp/install-chromium.sh
+COPY --chmod=0755 scripts/install-chromium.sh /tmp/install-chromium.sh
 
-RUN chmod 0755 /tmp/install-chromium.sh && \
-    CHROMIUM_REVISION="${CHROMIUM_REVISION}" /tmp/install-chromium.sh && \
+RUN CHROMIUM_REVISION="${CHROMIUM_REVISION}" /tmp/install-chromium.sh && \
     rm -f /tmp/install-chromium.sh
 
 ENV IMAGE_VARIANT=full \

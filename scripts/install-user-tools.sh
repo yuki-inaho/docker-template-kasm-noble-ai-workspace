@@ -133,8 +133,8 @@ install_rust_and_just() {
   fi
 }
 
-install_node_and_codex() {
-  log "Installing Node.js ${NODE_VERSION} and Codex CLI"
+install_node() {
+  log "Installing Node.js ${NODE_VERSION}"
   if [[ ! -s "${NVM_DIR}/nvm.sh" ]]; then
     retry bash -o pipefail -c "curl --retry 5 --retry-all-errors -o- https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh | bash"
   fi
@@ -144,12 +144,38 @@ install_node_and_codex() {
   nvm install "${NODE_VERSION}"
   nvm alias default "${NODE_VERSION}"
   nvm use "${NODE_VERSION}"
+}
+
+install_codex() {
+  log "Installing Codex CLI ${CODEX_VERSION}"
+  # shellcheck disable=SC1090
+  source "${NVM_DIR}/nvm.sh"
+  nvm use "${NODE_VERSION}"
 
   if [[ -n "${CODEX_VERSION}" ]]; then
     retry npm install -g "@openai/codex@${CODEX_VERSION}"
   else
     retry npm install -g @openai/codex
   fi
+}
+
+install_foundation() {
+  prepare_environment
+  ensure_pyenv
+  install_poetry
+  install_uv
+  install_rust_and_just
+  install_node
+  cleanup_user_caches
+}
+
+install_agent_tools() {
+  prepare_environment
+  install_codex
+  install_claude
+  install_rtk
+  verify
+  cleanup_user_caches
 }
 
 install_claude() {
@@ -221,16 +247,22 @@ verify() {
 }
 
 main() {
-  prepare_environment
-  ensure_pyenv
-  install_poetry
-  install_uv
-  install_rust_and_just
-  install_node_and_codex
-  install_claude
-  install_rtk
-  verify
-  cleanup_user_caches
+  case "${1:-all}" in
+    foundation)
+      install_foundation
+      ;;
+    agents)
+      install_agent_tools
+      ;;
+    all)
+      install_foundation
+      install_agent_tools
+      ;;
+    *)
+      echo "Usage: $0 [foundation|agents|all]" >&2
+      return 2
+      ;;
+  esac
 }
 
 main "$@"
