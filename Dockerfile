@@ -39,8 +39,11 @@ RUN chmod 0755 /opt/image-build/*.sh && \
 
 # Kasm copies /home/kasm-default-profile into /home/kasm-user on first start.
 # User-scoped tools therefore have to be installed into the default profile.
-RUN mkdir -p /opt/pyenv && \
-    chown -R 1000:0 /home/kasm-default-profile /opt/pyenv
+# The upstream image already owns this profile as uid 1000. Do not use a
+# recursive chown here: changing metadata for the whole profile duplicates its
+# contents in a new image layer.
+RUN test "$(stat -c '%u:%g' /home/kasm-default-profile)" = "1000:0" && \
+    install -d -m 0755 -o 1000 -g 0 /opt/pyenv
 
 USER 1000
 
@@ -69,9 +72,8 @@ RUN install -m 0755 /opt/image-build/runtime-init.sh /dockerstartup/runtime-init
     fi && \
     install -m 0755 /opt/image-build/custom-startup.sh /dockerstartup/custom_startup.sh && \
     install -m 0755 /opt/image-build/smoke-test.sh /usr/local/bin/image-smoke-test && \
-    mkdir -p /workspace /home/kasm-user && \
-    chown -R 1000:0 /workspace /home/kasm-default-profile /home/kasm-user && \
-    chmod 2775 /workspace && \
+    install -d -m 2775 -o 1000 -g 0 /workspace && \
+    install -d -m 0755 -o 1000 -g 0 /home/kasm-user && \
     rm -rf /opt/image-build
 
 ENV HOME=/home/kasm-user \
