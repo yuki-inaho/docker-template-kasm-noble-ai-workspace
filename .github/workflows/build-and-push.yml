@@ -142,7 +142,6 @@ jobs:
           tags: ${{ steps.meta-full.outputs.tags }}
           labels: ${{ steps.meta-full.outputs.labels }}
           cache-from: type=gha,scope=image-amd64
-          cache-to: type=gha,scope=image-amd64,mode=min,ignore-error=true
           build-args: |
             KASM_REPOSITORY=kasmweb/ubuntu-noble-nvidia
             KASM_VERSION=1.19.0
