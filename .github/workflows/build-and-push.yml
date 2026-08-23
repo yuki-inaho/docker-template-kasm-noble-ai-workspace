@@ -10,9 +10,6 @@ on:
       - scripts/**
       - .github/workflows/build-and-push.yml
   workflow_dispatch:
-  schedule:
-    # Every Monday at 03:17 UTC (12:17 JST).
-    - cron: "17 3 * * 1"
 
 permissions:
   contents: read
@@ -37,6 +34,7 @@ jobs:
           df -h
 
       - name: Set up Docker Buildx
+        id: buildx
         uses: docker/setup-buildx-action@v4
 
       - name: Check Docker Hub token
@@ -59,8 +57,8 @@ jobs:
         shell: bash
         run: echo "name=docker.io/yukiinaho/kasm-noble-ai" >> "$GITHUB_OUTPUT"
 
-      - name: Generate image metadata
-        id: meta
+      - name: Generate standard image metadata
+        id: meta-standard
         uses: docker/metadata-action@v6
         with:
           images: ${{ steps.image.outputs.name }}
@@ -69,21 +67,85 @@ jobs:
             type=ref,event=tag
             type=sha,prefix=sha-
 
-      - name: Build and push
+      - name: Generate full image metadata
+        id: meta-full
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=raw,value=full,enable={{is_default_branch}}
+            type=ref,event=tag,suffix=-full
+            type=sha,prefix=full-sha-
+
+      - name: Test standard image
         uses: docker/build-push-action@v7
         with:
+          builder: ${{ steps.buildx.outputs.name }}
           context: .
+          target: test-standard
+          platforms: linux/amd64
+          pull: true
+          push: false
+          cache-from: type=gha,scope=image-amd64
+          build-args: |
+            KASM_REPOSITORY=kasmweb/ubuntu-noble-nvidia
+            KASM_VERSION=1.19.0
+            NODE_VERSION=22
+            POETRY_VERSION=1.8.5
+            CODEX_VERSION=latest
+
+      - name: Test full image
+        uses: docker/build-push-action@v7
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          target: test-full
+          platforms: linux/amd64
+          pull: false
+          push: false
+          cache-from: type=gha,scope=image-amd64
+          build-args: |
+            KASM_REPOSITORY=kasmweb/ubuntu-noble-nvidia
+            KASM_VERSION=1.19.0
+            NODE_VERSION=22
+            POETRY_VERSION=1.8.5
+            CODEX_VERSION=latest
+
+      - name: Build and push standard image
+        uses: docker/build-push-action@v7
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          target: standard
           platforms: linux/amd64
           pull: true
           push: true
-          no-cache: ${{ github.event_name == 'schedule' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=min,ignore-error=true
+          tags: ${{ steps.meta-standard.outputs.tags }}
+          labels: ${{ steps.meta-standard.outputs.labels }}
+          cache-from: type=gha,scope=image-amd64
           build-args: |
             KASM_REPOSITORY=kasmweb/ubuntu-noble-nvidia
-            KASM_VERSION=1.19.0-rolling-weekly
+            KASM_VERSION=1.19.0
+            NODE_VERSION=22
+            POETRY_VERSION=1.8.5
+            CODEX_VERSION=latest
+
+      - name: Build and push full image
+        uses: docker/build-push-action@v7
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          target: full
+          platforms: linux/amd64
+          pull: false
+          push: true
+          tags: ${{ steps.meta-full.outputs.tags }}
+          labels: ${{ steps.meta-full.outputs.labels }}
+          cache-from: type=gha,scope=image-amd64
+          cache-to: type=gha,scope=image-amd64,mode=min,ignore-error=true
+          build-args: |
+            KASM_REPOSITORY=kasmweb/ubuntu-noble-nvidia
+            KASM_VERSION=1.19.0
             NODE_VERSION=22
             POETRY_VERSION=1.8.5
             CODEX_VERSION=latest

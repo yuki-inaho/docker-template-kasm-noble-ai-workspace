@@ -1,21 +1,17 @@
-name: Validate Docker image
+name: Weekly image canary
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - Dockerfile
-      - .dockerignore
-      - scripts/**
-      - .github/workflows/validate-image.yml
+  schedule:
+    # Every Monday at 03:17 UTC (12:17 JST).
+    - cron: "17 3 * * 1"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: docker-validate-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: docker-weekly-canary
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -36,7 +32,9 @@ jobs:
         id: buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Test standard image without publishing
+      # This cold build deliberately uses the rolling base image, but has no
+      # registry credentials and never publishes or changes release tags.
+      - name: Cold-test standard image
         uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
@@ -45,15 +43,15 @@ jobs:
           platforms: linux/amd64
           pull: true
           push: false
-          cache-from: type=gha,scope=image-amd64
+          no-cache: true
           build-args: |
             KASM_REPOSITORY=kasmweb/ubuntu-noble-nvidia
-            KASM_VERSION=1.19.0
+            KASM_VERSION=1.19.0-rolling-weekly
             NODE_VERSION=22
             POETRY_VERSION=1.8.5
             CODEX_VERSION=latest
 
-      - name: Test full image without publishing
+      - name: Test full image after the cold standard build
         uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
@@ -62,10 +60,9 @@ jobs:
           platforms: linux/amd64
           pull: false
           push: false
-          cache-from: type=gha,scope=image-amd64
           build-args: |
             KASM_REPOSITORY=kasmweb/ubuntu-noble-nvidia
-            KASM_VERSION=1.19.0
+            KASM_VERSION=1.19.0-rolling-weekly
             NODE_VERSION=22
             POETRY_VERSION=1.8.5
             CODEX_VERSION=latest

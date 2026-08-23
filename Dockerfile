@@ -121,5 +121,15 @@ LABEL org.opencontainers.image.description="Ubuntu 24.04 KasmVNC desktop with CU
 
 USER 1000
 
+# These targets run during CI. They are separate from the published targets so
+# the smoke-test layer is never included in a pulled image.
+FROM standard AS test-standard
+
+RUN HOME=/home/kasm-default-profile /usr/local/bin/image-smoke-test
+
+FROM full AS test-full
+
+RUN HOME=/home/kasm-default-profile /usr/local/bin/image-smoke-test
+
 # Keep the lean standard target as the unqualified `docker build .` result.
 FROM standard AS default

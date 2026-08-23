@@ -29,6 +29,16 @@ check_command() {
   fi
 }
 
+check_present() {
+  local command_name="$1"
+
+  if command -v "${command_name}" >/dev/null 2>&1; then
+    pass "${command_name} is installed"
+  else
+    fail "${command_name} is not in PATH"
+  fi
+}
+
 export PATH="${HOME}/.local/bin:${HOME}/.cargo/bin:/opt/pyenv/bin:${PATH}"
 export PYENV_ROOT="/opt/pyenv"
 export NVM_DIR="${HOME}/.nvm"
@@ -59,7 +69,7 @@ check_command npm npm --version
 check_command codex codex --version
 check_command claude claude --version
 check_command rtk rtk --version
-check_command google-chrome google-chrome --version
+check_command google-chrome bash -lc 'google-chrome --version 2>/dev/null'
 
 case "${IMAGE_VARIANT}" in
   standard)
@@ -78,8 +88,10 @@ case "${IMAGE_VARIANT}" in
 esac
 
 check_command ibus ibus version
-check_command nautilus nautilus --version
-check_command nomacs nomacs --version
+# These GUI applications try to open an X display even for --version. Presence
+# is the useful build-time contract; desktop launch is covered at runtime.
+check_present nautilus
+check_present nomacs
 check_command emacs emacs --version
 
 if command -v nvidia-smi >/dev/null 2>&1; then
