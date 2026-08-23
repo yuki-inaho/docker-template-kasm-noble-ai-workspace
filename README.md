@@ -1,5 +1,7 @@
 # Kasm Noble AI Workspace
 
+[![Docker build](https://github.com/yuki-inaho/docker-template-kasm-noble-ai-workspace/actions/workflows/build-and-push.yml/badge.svg?branch=main)](https://github.com/yuki-inaho/docker-template-kasm-noble-ai-workspace/actions/workflows/build-and-push.yml)
+
 A custom Ubuntu 24.04 KasmVNC desktop image for Docker-based environments.
 
 ## Base Image

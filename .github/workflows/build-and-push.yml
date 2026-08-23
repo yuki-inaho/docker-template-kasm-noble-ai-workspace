@@ -6,6 +6,7 @@ on:
     tags: ["v*"]
   workflow_dispatch:
   schedule:
+    # Every Monday at 03:17 UTC (12:17 JST).
     - cron: "17 3 * * 1"
 
 permissions:
