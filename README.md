@@ -23,9 +23,6 @@ docker build -t yukiinaho/kasm-noble-ai:1.0.0 .
 docker push yukiinaho/kasm-noble-ai:1.0.0
 ```
 
-For GitHub Actions, create a Docker Hub personal access token with Read & Write
-permission and save it as the repository secret `DOCKERHUB_TOKEN`.
-
 ## Connection
 
 Expose `6901/tcp`, keep the image ENTRYPOINT, and pass `--wait` as its
