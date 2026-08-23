@@ -1,0 +1,36 @@
+services:
+  workspace:
+    build:
+      context: .
+      args:
+        KASM_REPOSITORY: "kasmweb/ubuntu-noble-nvidia"
+        KASM_VERSION: "1.19.0"
+        NODE_VERSION: "22"
+        POETRY_VERSION: "1.8.5"
+        CODEX_VERSION: "latest"
+    image: kasm-noble-ai-workspace:local
+    restart: unless-stopped
+    shm_size: "1gb"
+    ports:
+      - "6901:6901"
+    environment:
+      VNC_PW: ${VNC_PW:?Set VNC_PW in .env}
+      TZ: ${TZ:-Asia/Tokyo}
+      NVIDIA_DRIVER_CAPABILITIES: all
+      ENABLE_JAPANESE_INPUT: "1"
+      WORKSPACE_CHOWN: "1"
+      AUTO_CD_WORKSPACE: "1"
+      GIT_USER_NAME: ${GIT_USER_NAME:-}
+      GIT_USER_EMAIL: ${GIT_USER_EMAIL:-}
+    volumes:
+      - workspace-data:/workspace
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  workspace-data:
