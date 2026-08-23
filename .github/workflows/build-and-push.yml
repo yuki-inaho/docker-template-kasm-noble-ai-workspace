@@ -90,7 +90,7 @@ jobs:
           build-args: |
             KASM_REPOSITORY=kasmweb/ubuntu-noble-nvidia
             KASM_VERSION=1.19.0
-            NODE_VERSION=22
+            NODE_VERSION=22.23.2
             POETRY_VERSION=1.8.5
             CODEX_VERSION=latest
 
@@ -107,7 +107,7 @@ jobs:
           build-args: |
             KASM_REPOSITORY=kasmweb/ubuntu-noble-nvidia
             KASM_VERSION=1.19.0
-            NODE_VERSION=22
+            NODE_VERSION=22.23.2
             POETRY_VERSION=1.8.5
             CODEX_VERSION=latest
 
@@ -126,7 +126,7 @@ jobs:
           build-args: |
             KASM_REPOSITORY=kasmweb/ubuntu-noble-nvidia
             KASM_VERSION=1.19.0
-            NODE_VERSION=22
+            NODE_VERSION=22.23.2
             POETRY_VERSION=1.8.5
             CODEX_VERSION=latest
 
@@ -146,6 +146,6 @@ jobs:
           build-args: |
             KASM_REPOSITORY=kasmweb/ubuntu-noble-nvidia
             KASM_VERSION=1.19.0
-            NODE_VERSION=22
+            NODE_VERSION=22.23.2
             POETRY_VERSION=1.8.5
             CODEX_VERSION=latest

@@ -6,11 +6,16 @@ if [[ "$(id -u)" -eq 0 ]]; then
   exit 1
 fi
 
-NODE_VERSION="${NODE_VERSION:-22}"
+NODE_VERSION="${NODE_VERSION:-22.23.2}"
 NVM_VERSION="${NVM_VERSION:-v0.40.2}"
 POETRY_VERSION="${POETRY_VERSION:-1.8.5}"
+UV_VERSION="${UV_VERSION:-0.12.5}"
+RUST_VERSION="${RUST_VERSION:-1.98.0}"
+JUST_VERSION="${JUST_VERSION:-1.58.0}"
+JUST_SHA256="${JUST_SHA256:-4a5cc2f53e6f0f8c59092a6cc38291eb729d46a7dd95d3ae582008881b84931d}"
 CODEX_VERSION="${CODEX_VERSION:-latest}"
-RTK_VERSION="${RTK_VERSION:-}"
+CLAUDE_VERSION="${CLAUDE_VERSION:-latest}"
+RTK_VERSION="${RTK_VERSION:-v0.45.0}"
 PYENV_ROOT="${PYENV_ROOT:-/opt/pyenv}"
 NVM_DIR="${NVM_DIR:-${HOME}/.nvm}"
 BASHRC="${BASHRC:-${HOME}/.bashrc}"
@@ -94,28 +99,37 @@ install_poetry() {
 }
 
 install_uv() {
-  log "Installing uv"
-  if command -v uv >/dev/null 2>&1; then
-    uv self update || true
-  else
-    retry bash -o pipefail -c 'curl --retry 5 --retry-all-errors -LsSf https://astral.sh/uv/install.sh | sh'
+  log "Installing uv ${UV_VERSION}"
+  if ! command -v uv >/dev/null 2>&1 || \
+     ! uv --version | grep -Fq "uv ${UV_VERSION}"; then
+    retry env UV_VERSION="${UV_VERSION}" bash -o pipefail -c \
+      'curl --retry 5 --retry-all-errors -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" | sh'
   fi
 }
 
 install_rust_and_just() {
-  log "Installing Rust stable and just"
+  log "Installing Rust ${RUST_VERSION} and just ${JUST_VERSION}"
   if [[ -x "${HOME}/.cargo/bin/rustup" ]]; then
-    "${HOME}/.cargo/bin/rustup" self update || true
-    "${HOME}/.cargo/bin/rustup" toolchain install stable --profile minimal
-    "${HOME}/.cargo/bin/rustup" default stable
+    "${HOME}/.cargo/bin/rustup" toolchain install "${RUST_VERSION}" --profile minimal
+    "${HOME}/.cargo/bin/rustup" default "${RUST_VERSION}"
   else
-    retry bash -o pipefail -c "curl --retry 5 --retry-all-errors --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable"
+    retry bash -o pipefail -c "curl --retry 5 --retry-all-errors --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain ${RUST_VERSION}"
   fi
 
   # shellcheck disable=SC1091
   source "${HOME}/.cargo/env"
-  if ! command -v just >/dev/null 2>&1; then
-    retry cargo install just --locked
+  if ! command -v just >/dev/null 2>&1 || \
+     ! just --version | grep -Fq "just ${JUST_VERSION}"; then
+    local archive
+    archive="$(mktemp)"
+    retry curl --retry 5 --retry-all-errors -fsSL \
+      "https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
+      -o "${archive}"
+    echo "${JUST_SHA256}  ${archive}" | sha256sum -c -
+    mkdir -p "${HOME}/.local/bin"
+    tar -xzf "${archive}" -C "${HOME}/.local/bin" just
+    chmod 0755 "${HOME}/.local/bin/just"
+    rm -f "${archive}"
   fi
 }
 
@@ -139,8 +153,15 @@ install_node_and_codex() {
 }
 
 install_claude() {
-  log "Installing Claude Code"
-  retry bash -o pipefail -c 'curl --retry 5 --retry-all-errors -fsSL https://claude.ai/install.sh | bash'
+  log "Installing Claude Code ${CLAUDE_VERSION}"
+  if [[ "${CLAUDE_VERSION}" == "latest" ]]; then
+    retry bash -o pipefail -c \
+      'curl --retry 5 --retry-all-errors -fsSL https://claude.ai/install.sh | bash'
+  elif [[ ! -x "${HOME}/.local/bin/claude" ]] || \
+       ! "${HOME}/.local/bin/claude" --version | grep -Fq "${CLAUDE_VERSION}"; then
+    retry env CLAUDE_VERSION="${CLAUDE_VERSION}" bash -o pipefail -c \
+      'curl --retry 5 --retry-all-errors -fsSL https://claude.ai/install.sh | bash -s -- "${CLAUDE_VERSION}"'
+  fi
 }
 
 install_rtk() {
