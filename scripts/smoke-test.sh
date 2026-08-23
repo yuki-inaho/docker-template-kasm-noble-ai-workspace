@@ -71,6 +71,32 @@ check_command claude claude --version
 check_command rtk rtk --version
 check_command google-chrome bash -lc 'google-chrome --version 2>/dev/null'
 
+if grep -Fq -- '-sslOnly' /dockerstartup/vnc_startup.http.sh; then
+  fail "HTTP VNC startup script still enforces -sslOnly"
+else
+  pass "HTTP VNC startup script accepts plain HTTP/WebSocket connections"
+fi
+
+if grep -Fq -- '-sslOnly' /dockerstartup/vnc_startup.ssl.sh; then
+  pass "TLS VNC startup script enforces -sslOnly"
+else
+  fail "TLS VNC startup script does not enforce -sslOnly"
+fi
+
+if awk '
+  /^[[:space:]]*pem_key:/ {
+    getline
+    if ($0 ~ /^[[:space:]]*require_ssl:[[:space:]]*false[[:space:]]*$/) {
+      found = 1
+    }
+  }
+  END { exit !found }
+' /etc/kasmvnc/kasmvnc.yaml; then
+  pass "KasmVNC permits HTTP when the HTTP startup script is selected"
+else
+  fail "KasmVNC require_ssl: false is missing below pem_key"
+fi
+
 case "${IMAGE_VARIANT}" in
   standard)
     if command -v chromium >/dev/null 2>&1; then

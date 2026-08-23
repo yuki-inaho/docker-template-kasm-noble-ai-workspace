@@ -79,9 +79,15 @@ USER root
 # Preserve Kasm's existing long-running custom startup script, then wrap it with
 # our one-time runtime initialization. The original script must remain alive or
 # Kasm will restart it continuously.
-COPY --chmod=0755 scripts/runtime-init.sh scripts/custom-startup.sh scripts/smoke-test.sh /opt/image-build/
+COPY --chmod=0755 scripts/runtime-init.sh scripts/custom-startup.sh scripts/smoke-test.sh scripts/vnc-startup.sh /opt/image-build/
 
 RUN install -m 0755 /opt/image-build/runtime-init.sh /dockerstartup/runtime-init.sh && \
+    install -m 0755 /dockerstartup/vnc_startup.sh /dockerstartup/vnc_startup.ssl.sh && \
+    sed 's/[[:space:]]-sslOnly//g' /dockerstartup/vnc_startup.ssl.sh > /dockerstartup/vnc_startup.http.sh && \
+    chmod 0755 /dockerstartup/vnc_startup.http.sh && \
+    sed -i '/^[[:space:]]*require_ssl:/d' /etc/kasmvnc/kasmvnc.yaml && \
+    sed -i '/^[[:space:]]*pem_key:/a\    require_ssl: false' /etc/kasmvnc/kasmvnc.yaml && \
+    install -m 0755 /opt/image-build/vnc-startup.sh /dockerstartup/vnc_startup.sh && \
     if [[ ! -f /dockerstartup/custom_startup.base.sh ]]; then \
       if [[ -f /dockerstartup/custom_startup.sh ]]; then \
         mv /dockerstartup/custom_startup.sh /dockerstartup/custom_startup.base.sh; \

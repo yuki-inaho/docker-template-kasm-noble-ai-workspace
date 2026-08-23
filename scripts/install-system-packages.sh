@@ -16,9 +16,21 @@ log() {
   printf '\n[system] %s\n' "$*"
 }
 
+select_locales() {
+  printf '%s\n' \
+    'en_US.UTF-8 UTF-8' \
+    'ja_JP.UTF-8 UTF-8' \
+    > /etc/locale.gen
+}
+
 install_base_packages() {
   log "Installing development and utility packages"
   apt_get update
+
+  # The locales package generates every enabled entry in /etc/locale.gen while
+  # it is installed. Limit the selection before APT invokes that post-install
+  # hook, rather than only before our explicit locale-gen call below.
+  select_locales
 
   # Intentionally no apt-get upgrade here. Updating the tagged base image and
   # rebuilding is safer and more reproducible than upgrading every package in
@@ -112,10 +124,7 @@ configure_passwordless_sudo() {
 
 configure_locales() {
   log "Generating English and Japanese UTF-8 locales"
-  printf '%s\n' \
-    'en_US.UTF-8 UTF-8' \
-    'ja_JP.UTF-8 UTF-8' \
-    > /etc/locale.gen
+  select_locales
   locale-gen
 }
 

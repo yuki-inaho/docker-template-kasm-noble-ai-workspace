@@ -23,6 +23,10 @@ docker pull yukiinaho/kasm-noble-ai:full
 The standard image includes Chrome from the base image, Japanese input, GitHub
 CLI, Poetry, uv, Rust, Codex CLI, Claude Code, and RTK.
 
+By default, the VNC service uses TLS for direct TCP connections. When an HTTPS
+reverse proxy terminates TLS before forwarding to port `6901`, set
+`KASMVNC_REQUIRE_SSL=false` and expose `6901` as an HTTP service.
+
 ## Build
 
 ```bash
