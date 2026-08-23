@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - scripts/**
+      - .github/workflows/build-and-push.yml
   workflow_dispatch:
   schedule:
     # Every Monday at 03:17 UTC (12:17 JST).
@@ -11,6 +16,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -65,7 +74,9 @@ jobs:
         with:
           context: .
           platforms: linux/amd64
+          pull: true
           push: true
+          no-cache: ${{ github.event_name == 'schedule' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

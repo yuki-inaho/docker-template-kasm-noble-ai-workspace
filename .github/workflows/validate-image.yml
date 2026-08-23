@@ -1,0 +1,52 @@
+name: Validate Docker image
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - scripts/**
+      - .github/workflows/validate-image.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-validate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Free runner disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          docker system prune --all --force || true
+          df -h
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build image without publishing
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          pull: true
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,ignore-error=true
+          build-args: |
+            KASM_REPOSITORY=kasmweb/ubuntu-noble-nvidia
+            KASM_VERSION=1.19.0-rolling-weekly
+            NODE_VERSION=22
+            POETRY_VERSION=1.8.5
+            CODEX_VERSION=latest
