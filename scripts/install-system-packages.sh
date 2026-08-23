@@ -23,14 +23,26 @@ select_locales() {
     > /etc/locale.gen
 }
 
+ensure_locales() {
+  if ! dpkg-query -W -f='${db:Status-Status}' locales 2>/dev/null | grep -qx installed; then
+    # Keep our deliberately small locale selection if the package needs to be
+    # installed on a future base image. `--force-confold` prevents dpkg from
+    # replacing it with the distribution's broad default during installation.
+    select_locales
+    apt_get -o Dpkg::Options::=--force-confold install -y --no-install-recommends locales
+  fi
+
+  select_locales
+}
+
 install_base_packages() {
   log "Installing development and utility packages"
   apt_get update
 
-  # The locales package generates every enabled entry in /etc/locale.gen while
-  # it is installed. Limit the selection before APT invokes that post-install
-  # hook, rather than only before our explicit locale-gen call below.
-  select_locales
+  # The base image already provides locales. Avoid requesting it through the
+  # general APT transaction: its package post-install hook can otherwise
+  # regenerate every locale inherited from the base configuration.
+  ensure_locales
 
   # Intentionally no apt-get upgrade here. Updating the tagged base image and
   # rebuilding is safer and more reproducible than upgrading every package in
@@ -60,7 +72,6 @@ install_base_packages() {
     libxml2-dev \
     libxmlsec1-dev \
     llvm \
-    locales \
     make \
     openssh-client \
     pigz \
