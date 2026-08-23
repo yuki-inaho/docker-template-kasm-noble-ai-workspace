@@ -4,6 +4,8 @@
 
 A custom Ubuntu 24.04 KasmVNC desktop image for Docker-based environments.
 
+Image: [Docker Hub](https://hub.docker.com/r/yukiinaho/kasm-noble-ai)
+
 ## Base Image
 
 ```text
