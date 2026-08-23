@@ -112,9 +112,11 @@ configure_passwordless_sudo() {
 
 configure_locales() {
   log "Generating English and Japanese UTF-8 locales"
-  sed -i -E 's/^# ?(en_US.UTF-8 UTF-8)/\1/' /etc/locale.gen
-  sed -i -E 's/^# ?(ja_JP.UTF-8 UTF-8)/\1/' /etc/locale.gen
-  locale-gen en_US.UTF-8 ja_JP.UTF-8
+  printf '%s\n' \
+    'en_US.UTF-8 UTF-8' \
+    'ja_JP.UTF-8 UTF-8' \
+    > /etc/locale.gen
+  locale-gen
 }
 
 cleanup() {
