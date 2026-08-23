@@ -2,7 +2,7 @@
 
 ARG KASM_REPOSITORY=kasmweb/ubuntu-noble-nvidia
 ARG KASM_VERSION=1.19.0
-FROM ${KASM_REPOSITORY}:${KASM_VERSION}
+FROM ${KASM_REPOSITORY}:${KASM_VERSION} AS common
 
 ARG KASM_REPOSITORY
 ARG KASM_VERSION
@@ -14,7 +14,7 @@ ARG CODEX_VERSION=latest
 ARG RTK_VERSION=""
 
 LABEL org.opencontainers.image.title="Kasm Noble AI Workspace" \
-      org.opencontainers.image.description="Ubuntu 24.04 KasmVNC desktop with CUDA, development tools, Japanese input, Codex CLI, Claude Code, RTK, Chromium, Poetry, uv and Rust" \
+      org.opencontainers.image.description="Ubuntu 24.04 KasmVNC desktop with CUDA, development tools, Japanese input, Codex CLI, Claude Code, RTK, Poetry, uv and Rust" \
       org.opencontainers.image.base.name="${KASM_REPOSITORY}:${KASM_VERSION}"
 
 USER root
@@ -34,8 +34,7 @@ WORKDIR ${HOME}
 COPY scripts/ /opt/image-build/
 
 RUN chmod 0755 /opt/image-build/*.sh && \
-    /opt/image-build/install-system-packages.sh && \
-    CHROMIUM_REVISION="${CHROMIUM_REVISION}" /opt/image-build/install-chromium.sh
+    /opt/image-build/install-system-packages.sh
 
 # Kasm copies /home/kasm-default-profile into /home/kasm-user on first start.
 # User-scoped tools therefore have to be installed into the default profile.
@@ -85,7 +84,7 @@ ENV HOME=/home/kasm-user \
     ENABLE_JAPANESE_INPUT=1 \
     WORKSPACE_CHOWN=1 \
     AUTO_CD_WORKSPACE=1 \
-    CHROMIUM_NO_SANDBOX=1 \
+    IMAGE_VARIANT=standard \
     NVIDIA_DRIVER_CAPABILITIES=all
 
 WORKDIR /workspace
@@ -96,3 +95,31 @@ STOPSIGNAL SIGTERM
 
 # ENTRYPOINT is intentionally inherited from the official Kasm image.
 CMD ["--wait"]
+
+# The default image keeps the browser supplied by the base image. Build it with
+# `docker build --target standard ...` when an explicit target is preferable.
+FROM common AS standard
+
+# Chromium is an opt-in extension. Keeping it in a terminal stage lets clients
+# that already have the standard image pull only this additional layer.
+FROM standard AS full
+
+ARG CHROMIUM_REVISION
+
+USER root
+
+COPY scripts/install-chromium.sh /tmp/install-chromium.sh
+
+RUN chmod 0755 /tmp/install-chromium.sh && \
+    CHROMIUM_REVISION="${CHROMIUM_REVISION}" /tmp/install-chromium.sh && \
+    rm -f /tmp/install-chromium.sh
+
+ENV IMAGE_VARIANT=full \
+    CHROMIUM_NO_SANDBOX=1
+
+LABEL org.opencontainers.image.description="Ubuntu 24.04 KasmVNC desktop with CUDA, development tools, Japanese input, Codex CLI, Claude Code, RTK, Poetry, uv, Rust and Chromium"
+
+USER 1000
+
+# Keep the lean standard target as the unqualified `docker build .` result.
+FROM standard AS default

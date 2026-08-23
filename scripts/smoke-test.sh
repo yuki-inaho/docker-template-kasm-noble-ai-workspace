@@ -32,6 +32,7 @@ check_command() {
 export PATH="${HOME}/.local/bin:${HOME}/.cargo/bin:/opt/pyenv/bin:${PATH}"
 export PYENV_ROOT="/opt/pyenv"
 export NVM_DIR="${HOME}/.nvm"
+IMAGE_VARIANT="${IMAGE_VARIANT:-standard}"
 
 if [[ -s "${NVM_DIR}/nvm.sh" ]]; then
   # shellcheck disable=SC1090
@@ -58,7 +59,24 @@ check_command npm npm --version
 check_command codex codex --version
 check_command claude claude --version
 check_command rtk rtk --version
-check_command chromium chromium --version
+check_command google-chrome google-chrome --version
+
+case "${IMAGE_VARIANT}" in
+  standard)
+    if command -v chromium >/dev/null 2>&1; then
+      fail "chromium must not be installed in the standard image"
+    else
+      pass "standard image does not include Chromium"
+    fi
+    ;;
+  full)
+    check_command chromium chromium --version
+    ;;
+  *)
+    fail "unknown IMAGE_VARIANT: ${IMAGE_VARIANT}"
+    ;;
+esac
+
 check_command ibus ibus version
 check_command nautilus nautilus --version
 check_command nomacs nomacs --version
