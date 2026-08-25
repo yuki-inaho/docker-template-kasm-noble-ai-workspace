@@ -40,6 +40,10 @@ COPY --chmod=0755 scripts/install-system-packages.sh /opt/image-build/install-sy
 
 RUN /opt/image-build/install-system-packages.sh
 
+COPY --chmod=0755 scripts/configure-ibus-hotkeys.sh /opt/image-build/configure-ibus-hotkeys.sh
+
+RUN /opt/image-build/configure-ibus-hotkeys.sh
+
 # Kasm copies /home/kasm-default-profile into /home/kasm-user on first start.
 # User-scoped tools therefore have to be installed into the default profile.
 # The upstream image already owns this profile as uid 1000. Do not use a
