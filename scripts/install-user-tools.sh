@@ -16,6 +16,12 @@ JUST_SHA256="${JUST_SHA256:-4a5cc2f53e6f0f8c59092a6cc38291eb729d46a7dd95d3ae5820
 CODEX_VERSION="${CODEX_VERSION:-latest}"
 CLAUDE_VERSION="${CLAUDE_VERSION:-latest}"
 RTK_VERSION="${RTK_VERSION:-v0.45.0}"
+PIXI_VERSION="${PIXI_VERSION:-0.77.1}"
+PIXI_SHA256="${PIXI_SHA256:-5115a89a9189a2e4e7e8d2f04236a7be586d8f6091dfc9ea869fb3c4a52b6935}"
+HERDR_VERSION="${HERDR_VERSION:-v0.8.2}"
+HERDR_SHA256="${HERDR_SHA256:-976150a14d490c94b243ea2e1a7eb2dfb67f12e36b182db90936f6728e6aecf4}"
+AGENT_JSONL_COMPACT_VERSION="${AGENT_JSONL_COMPACT_VERSION:-v0.1.0}"
+AGENT_JSONL_COMPACT_SHA256="${AGENT_JSONL_COMPACT_SHA256:-78bf0f1ac03e7ffbb869888e796ab1599facad1a68814f47e749b6e4c4faca46}"
 PYENV_ROOT="${PYENV_ROOT:-/opt/pyenv}"
 NVM_DIR="${NVM_DIR:-${HOME}/.nvm}"
 BASHRC="${BASHRC:-${HOME}/.bashrc}"
@@ -178,6 +184,120 @@ install_agent_tools() {
   cleanup_user_caches
 }
 
+require_x86_64_prebuilt() {
+  case "$(uname -m)" in
+    x86_64|amd64)
+      ;;
+    *)
+      echo "Workspace prebuilt CLIs support x86_64 only; found $(uname -m)" >&2
+      return 1
+      ;;
+  esac
+}
+
+download_and_verify() {
+  local url="$1"
+  local checksum="$2"
+  local destination="$3"
+
+  retry curl --retry 5 --retry-all-errors -fsSL "${url}" -o "${destination}"
+  printf '%s  %s\n' "${checksum}" "${destination}" | sha256sum -c -
+}
+
+install_pixi() {
+  log "Installing Pixi ${PIXI_VERSION}"
+
+  if command -v pixi >/dev/null 2>&1 && \
+     pixi --version | grep -Fq "${PIXI_VERSION}"; then
+    return
+  fi
+
+  local binary
+  binary="$(mktemp)"
+  download_and_verify \
+    "https://github.com/prefix-dev/pixi/releases/download/v${PIXI_VERSION#v}/pixi-x86_64-unknown-linux-musl" \
+    "${PIXI_SHA256}" \
+    "${binary}"
+  install -m 0755 "${binary}" "${HOME}/.local/bin/pixi"
+  rm -f "${binary}"
+}
+
+install_herdr() {
+  log "Installing Herdr ${HERDR_VERSION}"
+
+  if command -v herdr >/dev/null 2>&1 && \
+     herdr --version | grep -Fq "${HERDR_VERSION#v}"; then
+    return
+  fi
+
+  local binary
+  binary="$(mktemp)"
+  download_and_verify \
+    "https://github.com/herdrdev/herdr/releases/download/${HERDR_VERSION}/herdr-linux-x86_64" \
+    "${HERDR_SHA256}" \
+    "${binary}"
+  install -m 0755 "${binary}" "${HOME}/.local/bin/herdr"
+  rm -f "${binary}"
+}
+
+install_agent_jsonl_compact() {
+  log "Installing agent-jsonl-compact ${AGENT_JSONL_COMPACT_VERSION}"
+
+  if ! command -v agent-jsonl-compact >/dev/null 2>&1 || \
+     ! agent-jsonl-compact --version | grep -Fq "${AGENT_JSONL_COMPACT_VERSION#v}"; then
+    local archive
+    local extract_dir
+    local binary
+
+    archive="$(mktemp)"
+    extract_dir="$(mktemp -d)"
+    download_and_verify \
+      "https://github.com/yuki-inaho/agent-jsonl-compact/releases/download/${AGENT_JSONL_COMPACT_VERSION}/agent-jsonl-compact-x86_64-unknown-linux-musl.tar.gz" \
+      "${AGENT_JSONL_COMPACT_SHA256}" \
+      "${archive}"
+    tar -xzf "${archive}" -C "${extract_dir}"
+    binary="$(find "${extract_dir}" -type f -name agent-jsonl-compact -print -quit)"
+    if [[ -z "${binary}" ]]; then
+      echo "agent-jsonl-compact binary was not found after extraction" >&2
+      return 1
+    fi
+    install -m 0755 "${binary}" "${HOME}/.local/bin/agent-jsonl-compact"
+    rm -rf "${extract_dir}"
+    rm -f "${archive}"
+  fi
+
+  mkdir -p "${HOME}/.codex" "${HOME}/.claude"
+  agent-jsonl-compact install-skills
+}
+
+verify_workspace_tools() {
+  log "Installed workspace CLI versions"
+  export PATH="${HOME}/.local/bin:${PATH}"
+
+  pixi --version
+  herdr --version
+  agent-jsonl-compact --version
+  jq --version
+  sqlite3 --version
+  rg --version
+  fdfind --version
+  fzf --version
+  yq --version
+  tree --version
+  test -f "${HOME}/.codex/skills/agent-jsonl-compact-reader/SKILL.md"
+  test -f "${HOME}/.claude/skills/agent-jsonl-compact-reader/SKILL.md"
+}
+
+install_workspace_tools() {
+  prepare_environment
+  require_x86_64_prebuilt
+  install_pixi
+  install_herdr
+  install_agent_jsonl_compact
+  verify_workspace_tools
+  cleanup_user_caches
+}
+
 install_claude() {
   log "Installing Claude Code ${CLAUDE_VERSION}"
   if [[ "${CLAUDE_VERSION}" == "latest" ]]; then
@@ -254,12 +374,16 @@ main() {
     agents)
       install_agent_tools
       ;;
+    workspace)
+      install_workspace_tools
+      ;;
     all)
       install_foundation
       install_agent_tools
+      install_workspace_tools
       ;;
     *)
-      echo "Usage: $0 [foundation|agents|all]" >&2
+      echo "Usage: $0 [foundation|agents|workspace|all]" >&2
       return 2
       ;;
   esac

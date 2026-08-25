@@ -143,9 +143,26 @@ check_command npm npm --version
 check_command codex codex --version
 check_command claude claude --version
 check_command rtk rtk --version
+check_command pixi pixi --version
+check_command herdr herdr --version
+check_command agent-jsonl-compact agent-jsonl-compact --version
+check_command jq jq --version
+check_command sqlite3 sqlite3 --version
+check_command rg rg --version
+check_command fdfind fdfind --version
+check_command fzf fzf --version
+check_command yq yq --version
+check_command tree tree --version
 check_command google-chrome bash -lc 'google-chrome --version 2>/dev/null'
 check_ibus_hotkeys
 check_japanese_keyboard_profile
+
+if [[ -f "${HOME}/.codex/skills/agent-jsonl-compact-reader/SKILL.md" && \
+      -f "${HOME}/.claude/skills/agent-jsonl-compact-reader/SKILL.md" ]]; then
+  pass "agent-jsonl-compact reader skills are installed for Codex and Claude"
+else
+  fail "agent-jsonl-compact reader skills are missing from the default profile"
+fi
 
 if grep -Fq -- '-sslOnly' /dockerstartup/vnc_startup.http.sh; then
   fail "HTTP VNC startup script still enforces -sslOnly"
