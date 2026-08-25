@@ -27,6 +27,18 @@ By default, the VNC service uses TLS for direct TCP connections. When an HTTPS
 reverse proxy terminates TLS before forwarding to port `6901`, set
 `KASMVNC_REQUIRE_SSL=false` and expose `6901` as an HTTP service.
 
+## Keyboard and Japanese input
+
+The desktop uses the Japanese (`jp`) XKB layout for JIS 106/109 keyboards with
+IBus and Mozc; direct input also uses IBus's Japanese XKB engine. Toggle the
+input method with `Control+space` or `Super+space`. The global
+`Zenkaku_Hankaku` and `Alt+grave` triggers are disabled to prevent IBus shortcut
+grabs from intercepting `~` in KasmVNC's browser keyboard path. KasmVNC raw
+keyboard mode remains disabled.
+
+After deploying a new image, verify the real VNC input path with `xev`; XTEST
+tools such as `xdotool` do not reproduce browser-to-KasmVNC keyboard handling.
+
 ## Build
 
 ```bash

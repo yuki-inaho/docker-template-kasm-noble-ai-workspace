@@ -73,7 +73,7 @@ export QT_IM_MODULE=ibus
 export XMODIFIERS=@im=ibus
 
 if command -v setxkbmap >/dev/null 2>&1; then
-  setxkbmap -layout jp || true
+  setxkbmap -model pc105 -layout jp || true
 fi
 # <<< kasm-noble-ai-workspace
 BLOCK
@@ -101,6 +101,20 @@ DESKTOP
   im-config -n ibus || true
 }
 
+configure_keyboard_autostart() {
+  mkdir -p "${AUTOSTART_DIR}"
+  cat > "${AUTOSTART_DIR}/japanese-keyboard.desktop" <<'DESKTOP'
+[Desktop Entry]
+Type=Application
+Name=Japanese Keyboard Layout
+Comment=Apply the JIS 106/109 keyboard layout after XFCE starts
+Exec=sh -lc 'setxkbmap -model pc105 -layout jp'
+OnlyShowIn=XFCE;
+X-GNOME-Autostart-enabled=true
+NoDisplay=true
+DESKTOP
+}
+
 configure_file_manager() {
   mkdir -p "${XFCE_DIR}"
   local helpers="${XFCE_DIR}/helpers.rc"
@@ -118,6 +132,7 @@ main() {
   configure_bashrc
   configure_xsession
   configure_ibus_autostart
+  configure_keyboard_autostart
   configure_file_manager
 }
 

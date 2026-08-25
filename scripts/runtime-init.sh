@@ -62,16 +62,16 @@ configure_japanese_input() {
   export XMODIFIERS=@im=ibus
 
   if [[ -n "${DISPLAY:-}" ]] && command -v setxkbmap >/dev/null 2>&1; then
-    setxkbmap -layout jp || true
+    setxkbmap -model pc105 -layout jp || true
   fi
 
   if command -v gsettings >/dev/null 2>&1; then
-    gsettings set org.freedesktop.ibus.general.hotkey triggers \
-      "['Zenkaku_Hankaku', '<Super>space', 'Control+space']" || true
+    # IBus on/off shortcuts are configured and locked in the system dconf
+    # database so persistent user settings cannot restore conflicting grabs.
     gsettings set org.freedesktop.ibus.general preload-engines \
-      "['xkb:us::eng', 'mozc-jp']" || true
+      "['xkb:jp::jpn', 'mozc-jp']" || true
     gsettings set org.freedesktop.ibus.general engines-order \
-      "['mozc-jp', 'xkb:us::eng']" || true
+      "['mozc-jp', 'xkb:jp::jpn']" || true
   fi
 
   if command -v ibus-daemon >/dev/null 2>&1 && \

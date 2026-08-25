@@ -39,6 +39,80 @@ check_present() {
   fi
 }
 
+check_ibus_hotkeys() {
+  local schema="org.freedesktop.ibus.general.hotkey"
+  local trigger
+  local triggers
+  local trigger_writable
+  local triggers_writable
+
+  if ! command -v gsettings >/dev/null 2>&1; then
+    fail "gsettings is not in PATH"
+    return
+  fi
+
+  trigger="$(DCONF_PROFILE=ibus gsettings get "${schema}" trigger 2>/dev/null || true)"
+  triggers="$(DCONF_PROFILE=ibus gsettings get "${schema}" triggers 2>/dev/null || true)"
+  trigger_writable="$(DCONF_PROFILE=ibus gsettings writable "${schema}" trigger 2>/dev/null || true)"
+  triggers_writable="$(DCONF_PROFILE=ibus gsettings writable "${schema}" triggers 2>/dev/null || true)"
+
+  if [[ "${trigger}" == "['Control+space']" ]]; then
+    pass "IBus legacy trigger is limited to Control+space"
+  else
+    fail "unexpected IBus trigger value: ${trigger:-<empty>}"
+  fi
+
+  if [[ "${triggers}" == "['<Control>space', '<Super>space']" ]]; then
+    pass "IBus GTK triggers use Control+space and Super+space"
+  else
+    fail "unexpected IBus triggers value: ${triggers:-<empty>}"
+  fi
+
+  if [[ "${trigger}${triggers}" == *Zenkaku_Hankaku* || \
+     "${trigger}${triggers}" == *Alt+grave* ]]; then
+    fail "IBus triggers still contain a keycode-49 conflict"
+  else
+    pass "IBus triggers exclude Zenkaku_Hankaku and Alt+grave"
+  fi
+
+  if [[ "${trigger_writable}" == "false" && "${triggers_writable}" == "false" ]]; then
+    pass "IBus trigger settings are locked against persistent user overrides"
+  else
+    fail "IBus trigger locks are missing"
+  fi
+}
+
+check_japanese_keyboard_profile() {
+  local xsessionrc="${HOME}/.xsessionrc"
+  local autostart="${HOME}/.config/autostart/japanese-keyboard.desktop"
+
+  if grep -Fq 'setxkbmap -model pc105 -layout jp' "${xsessionrc}" 2>/dev/null; then
+    pass "X session config selects the JIS 106/109 keyboard layout"
+  else
+    fail "JIS keyboard configuration is missing from ${xsessionrc}"
+  fi
+
+  if grep -Fq "Exec=sh -lc 'setxkbmap -model pc105 -layout jp'" "${autostart}" 2>/dev/null; then
+    pass "XFCE autostart reapplies the JIS keyboard layout"
+  else
+    fail "JIS keyboard autostart is missing from ${autostart}"
+  fi
+
+  if grep -Fq 'xkb:jp::jpn' /dockerstartup/runtime-init.sh && \
+     ! grep -Fq 'xkb:us::eng' /dockerstartup/runtime-init.sh; then
+    pass "IBus direct input keeps the Japanese XKB layout"
+  else
+    fail "IBus direct input is not configured for the Japanese XKB layout"
+  fi
+
+  if grep -Eq '^[[:space:]]*raw_keyboard:[[:space:]]*false[[:space:]]*$' \
+      /usr/share/kasmvnc/kasmvnc_defaults.yaml; then
+    pass "KasmVNC raw keyboard mode remains disabled"
+  else
+    fail "KasmVNC raw_keyboard default is no longer false"
+  fi
+}
+
 export PATH="${HOME}/.local/bin:${HOME}/.cargo/bin:/opt/pyenv/bin:${PATH}"
 export PYENV_ROOT="/opt/pyenv"
 export NVM_DIR="${HOME}/.nvm"
@@ -70,6 +144,8 @@ check_command codex codex --version
 check_command claude claude --version
 check_command rtk rtk --version
 check_command google-chrome bash -lc 'google-chrome --version 2>/dev/null'
+check_ibus_hotkeys
+check_japanese_keyboard_profile
 
 if grep -Fq -- '-sslOnly' /dockerstartup/vnc_startup.http.sh; then
   fail "HTTP VNC startup script still enforces -sslOnly"
