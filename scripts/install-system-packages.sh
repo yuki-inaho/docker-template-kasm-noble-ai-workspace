@@ -57,6 +57,8 @@ install_base_packages() {
     curl \
     dconf-cli \
     direnv \
+    fd-find \
+    fzf \
     git \
     gnupg \
     jq \
@@ -78,12 +80,16 @@ install_base_packages() {
     pkg-config \
     python3-venv \
     rsync \
+    ripgrep \
     software-properties-common \
+    sqlite3 \
     sudo \
     tk-dev \
+    tree \
     unzip \
     wget \
     xz-utils \
+    yq \
     zip \
     zstd \
     zlib1g \

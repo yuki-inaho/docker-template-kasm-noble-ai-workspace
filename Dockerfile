@@ -17,9 +17,15 @@ ARG JUST_SHA256=4a5cc2f53e6f0f8c59092a6cc38291eb729d46a7dd95d3ae582008881b84931d
 ARG CODEX_VERSION=latest
 ARG CLAUDE_VERSION=latest
 ARG RTK_VERSION=v0.45.0
+ARG PIXI_VERSION=0.77.1
+ARG PIXI_SHA256=5115a89a9189a2e4e7e8d2f04236a7be586d8f6091dfc9ea869fb3c4a52b6935
+ARG HERDR_VERSION=v0.8.2
+ARG HERDR_SHA256=976150a14d490c94b243ea2e1a7eb2dfb67f12e36b182db90936f6728e6aecf4
+ARG AGENT_JSONL_COMPACT_VERSION=v0.1.0
+ARG AGENT_JSONL_COMPACT_SHA256=78bf0f1ac03e7ffbb869888e796ab1599facad1a68814f47e749b6e4c4faca46
 
 LABEL org.opencontainers.image.title="Kasm Noble AI Workspace" \
-      org.opencontainers.image.description="Ubuntu 24.04 KasmVNC desktop with CUDA, development tools, Japanese input, Codex CLI, Claude Code, RTK, Poetry, uv and Rust" \
+      org.opencontainers.image.description="Ubuntu 24.04 KasmVNC desktop with CUDA, development tools, Japanese input, Codex CLI, Claude Code, Herdr, RTK, Pixi, Poetry, uv, Rust and agent-jsonl-compact" \
       org.opencontainers.image.base.name="${KASM_REPOSITORY}:${KASM_VERSION}"
 
 USER root
@@ -81,6 +87,16 @@ RUN CODEX_VERSION="${CODEX_VERSION}" \
     CLAUDE_VERSION="${CLAUDE_VERSION}" \
     RTK_VERSION="${RTK_VERSION}" \
     /opt/image-build/install-user-tools.sh agents
+
+# These standalone development CLIs use pinned, checksum-verified prebuilt
+# x86_64 binaries. Keep them in a separate layer from the agent CLIs above.
+RUN PIXI_VERSION="${PIXI_VERSION}" \
+    PIXI_SHA256="${PIXI_SHA256}" \
+    HERDR_VERSION="${HERDR_VERSION}" \
+    HERDR_SHA256="${HERDR_SHA256}" \
+    AGENT_JSONL_COMPACT_VERSION="${AGENT_JSONL_COMPACT_VERSION}" \
+    AGENT_JSONL_COMPACT_SHA256="${AGENT_JSONL_COMPACT_SHA256}" \
+    /opt/image-build/install-user-tools.sh workspace
 
 COPY --chmod=0755 scripts/configure-default-profile.sh /opt/image-build/configure-default-profile.sh
 
@@ -155,7 +171,7 @@ RUN CHROMIUM_REVISION="${CHROMIUM_REVISION}" /tmp/install-chromium.sh && \
 ENV IMAGE_VARIANT=full \
     CHROMIUM_NO_SANDBOX=1
 
-LABEL org.opencontainers.image.description="Ubuntu 24.04 KasmVNC desktop with CUDA, development tools, Japanese input, Codex CLI, Claude Code, RTK, Poetry, uv, Rust and Chromium"
+LABEL org.opencontainers.image.description="Ubuntu 24.04 KasmVNC desktop with CUDA, development tools, Japanese input, Codex CLI, Claude Code, Herdr, RTK, Pixi, Poetry, uv, Rust, agent-jsonl-compact and Chromium"
 
 USER 1000
 
