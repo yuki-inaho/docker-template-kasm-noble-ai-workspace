@@ -16,16 +16,21 @@ ARG JUST_VERSION=1.58.0
 ARG JUST_SHA256=4a5cc2f53e6f0f8c59092a6cc38291eb729d46a7dd95d3ae582008881b84931d
 ARG CODEX_VERSION=latest
 ARG CLAUDE_VERSION=latest
-ARG RTK_VERSION=v0.45.0
+ARG OPENCODE_VERSION=latest
+ARG PLAYWRIGHT_CLI_VERSION=latest
+ARG RTK_VERSION=v0.49.0
 ARG PIXI_VERSION=0.77.1
 ARG PIXI_SHA256=5115a89a9189a2e4e7e8d2f04236a7be586d8f6091dfc9ea869fb3c4a52b6935
-ARG HERDR_VERSION=v0.8.2
-ARG HERDR_SHA256=976150a14d490c94b243ea2e1a7eb2dfb67f12e36b182db90936f6728e6aecf4
+ARG HERDR_VERSION=v0.9.0
+ARG HERDR_SHA256=4fa1a01158dd8043da92d31b270780b0dcc10603038d9b61cac4d81ab63fb71f
 ARG AGENT_JSONL_COMPACT_VERSION=v0.1.0
 ARG AGENT_JSONL_COMPACT_SHA256=78bf0f1ac03e7ffbb869888e796ab1599facad1a68814f47e749b6e4c4faca46
+ARG AGMSG_VERSION=v1.2.3
+ARG CLOUDFLARED_VERSION=2026.9.1
+ARG CLOUDFLARED_SHA256=3be76adc4185d36a0bfb4c2dd8663292f0ed363797f2180333b513b43c81d419
 
 LABEL org.opencontainers.image.title="Kasm Noble AI Workspace" \
-      org.opencontainers.image.description="Ubuntu 24.04 KasmVNC desktop with CUDA, development tools, Japanese input, Codex CLI, Claude Code, Herdr, RTK, Pixi, Poetry, uv, Rust and agent-jsonl-compact" \
+      org.opencontainers.image.description="Ubuntu 24.04 KasmVNC desktop with CUDA, development tools, Japanese input, Codex CLI, Claude Code, OpenCode with goal plugin, Playwright CLI, Herdr, RTK, agmsg, cloudflared, Pixi, Poetry, uv, Rust, agent-jsonl-compact, VLC and gedit" \
       org.opencontainers.image.base.name="${KASM_REPOSITORY}:${KASM_VERSION}"
 
 USER root
@@ -44,7 +49,9 @@ WORKDIR ${HOME}
 
 COPY --chmod=0755 scripts/install-system-packages.sh /opt/image-build/install-system-packages.sh
 
-RUN /opt/image-build/install-system-packages.sh
+RUN CLOUDFLARED_VERSION="${CLOUDFLARED_VERSION}" \
+    CLOUDFLARED_SHA256="${CLOUDFLARED_SHA256}" \
+    /opt/image-build/install-system-packages.sh
 
 COPY --chmod=0755 scripts/configure-ibus-hotkeys.sh /opt/image-build/configure-ibus-hotkeys.sh
 
@@ -85,6 +92,8 @@ RUN NODE_VERSION="${NODE_VERSION}" \
 # final user-tools layer so their updates do not invalidate the stable layer.
 RUN CODEX_VERSION="${CODEX_VERSION}" \
     CLAUDE_VERSION="${CLAUDE_VERSION}" \
+    OPENCODE_VERSION="${OPENCODE_VERSION}" \
+    PLAYWRIGHT_CLI_VERSION="${PLAYWRIGHT_CLI_VERSION}" \
     RTK_VERSION="${RTK_VERSION}" \
     /opt/image-build/install-user-tools.sh agents
 
@@ -96,6 +105,7 @@ RUN PIXI_VERSION="${PIXI_VERSION}" \
     HERDR_SHA256="${HERDR_SHA256}" \
     AGENT_JSONL_COMPACT_VERSION="${AGENT_JSONL_COMPACT_VERSION}" \
     AGENT_JSONL_COMPACT_SHA256="${AGENT_JSONL_COMPACT_SHA256}" \
+    AGMSG_VERSION="${AGMSG_VERSION}" \
     /opt/image-build/install-user-tools.sh workspace
 
 COPY --chmod=0755 scripts/configure-default-profile.sh /opt/image-build/configure-default-profile.sh
@@ -171,7 +181,7 @@ RUN CHROMIUM_REVISION="${CHROMIUM_REVISION}" /tmp/install-chromium.sh && \
 ENV IMAGE_VARIANT=full \
     CHROMIUM_NO_SANDBOX=1
 
-LABEL org.opencontainers.image.description="Ubuntu 24.04 KasmVNC desktop with CUDA, development tools, Japanese input, Codex CLI, Claude Code, Herdr, RTK, Pixi, Poetry, uv, Rust, agent-jsonl-compact and Chromium"
+LABEL org.opencontainers.image.description="Ubuntu 24.04 KasmVNC desktop with CUDA, development tools, Japanese input, Codex CLI, Claude Code, OpenCode with goal plugin, Playwright CLI, Herdr, RTK, agmsg, cloudflared, Pixi, Poetry, uv, Rust, agent-jsonl-compact, VLC, gedit and Chromium"
 
 USER 1000
 

@@ -113,7 +113,7 @@ check_japanese_keyboard_profile() {
   fi
 }
 
-export PATH="${HOME}/.local/bin:${HOME}/.cargo/bin:/opt/pyenv/bin:${PATH}"
+export PATH="${HOME}/.opencode/bin:${HOME}/.local/bin:${HOME}/.cargo/bin:/opt/pyenv/bin:${PATH}"
 export PYENV_ROOT="/opt/pyenv"
 export NVM_DIR="${HOME}/.nvm"
 IMAGE_VARIANT="${IMAGE_VARIANT:-standard}"
@@ -142,6 +142,8 @@ check_command node node --version
 check_command npm npm --version
 check_command codex codex --version
 check_command claude claude --version
+check_command opencode opencode --version
+check_command playwright-cli playwright-cli --version
 check_command rtk rtk --version
 check_command pixi pixi --version
 check_command herdr herdr --version
@@ -153,6 +155,8 @@ check_command fdfind fdfind --version
 check_command fzf fzf --version
 check_command yq yq --version
 check_command tree tree --version
+check_command cloudflared cloudflared --version
+check_command vlc vlc --version
 check_command google-chrome bash -lc 'google-chrome --version 2>/dev/null'
 check_ibus_hotkeys
 check_japanese_keyboard_profile
@@ -162,6 +166,31 @@ if [[ -f "${HOME}/.codex/skills/agent-jsonl-compact-reader/SKILL.md" && \
   pass "agent-jsonl-compact reader skills are installed for Codex and Claude"
 else
   fail "agent-jsonl-compact reader skills are missing from the default profile"
+fi
+
+plugin_cache="${HOME}/.cache/opencode/packages/@prevalentware/opencode-goal-plugin@latest/node_modules/@prevalentware/opencode-goal-plugin/package.json"
+
+if grep -Fq '@prevalentware/opencode-goal-plugin' "${HOME}/.config/opencode/opencode.jsonc" 2>/dev/null && \
+   grep -Fq '@prevalentware/opencode-goal-plugin' "${HOME}/.config/opencode/tui.json" 2>/dev/null && \
+   [[ -f "${plugin_cache}" ]]; then
+  pass "OpenCode goal plugin is configured and preinstalled"
+else
+  fail "OpenCode goal plugin is missing from opencode.jsonc / tui.json / plugin cache"
+fi
+
+if [[ -f "${HOME}/.agents/skills/agmsg/SKILL.md" && \
+      -x "${HOME}/.agents/skills/agmsg/scripts/version.sh" && \
+      -f "${HOME}/.config/opencode/skills/agmsg/SKILL.md" && \
+      -f "${HOME}/.claude/commands/agmsg.md" ]]; then
+  pass "agmsg is installed with OpenCode and Claude integration"
+else
+  fail "agmsg installation is incomplete (skill, version.sh, OpenCode skill, or Claude command missing)"
+fi
+
+if bash -ic 'alias opencode-auto' 2>/dev/null | grep -Fq 'opencode --auto'; then
+  pass "opencode-auto alias is registered in the default profile"
+else
+  fail "opencode-auto alias is missing from the default profile"
 fi
 
 if grep -Fq -- '-sslOnly' /dockerstartup/vnc_startup.http.sh; then
@@ -211,6 +240,7 @@ check_command ibus ibus version
 # is the useful build-time contract; desktop launch is covered at runtime.
 check_present nautilus
 check_present nomacs
+check_present gedit
 check_command emacs emacs --version
 
 if command -v nvidia-smi >/dev/null 2>&1; then

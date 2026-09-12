@@ -21,10 +21,14 @@ docker pull yukiinaho/kasm-noble-ai:full
 ```
 
 The standard image includes Chrome from the base image, Japanese input, GitHub
-CLI, Poetry, uv, Pixi, Rust, Codex CLI, Claude Code, Herdr, RTK, and the
-prebuilt `agent-jsonl-compact` CLI with its Codex/Claude reader skills. Common
-terminal utilities include `jq`, `sqlite3`, `rg`, `fdfind`, `fzf`, `tree`, and
-`yq`.
+CLI, Poetry, uv, Pixi, Rust, Codex CLI, Claude Code, OpenCode with the goal
+plugin, Playwright CLI, Herdr, RTK, agmsg, cloudflared, and the prebuilt
+`agent-jsonl-compact` CLI with its Codex/Claude reader skills. Common terminal
+utilities include `jq`, `sqlite3`, `rg`, `fdfind`, `fzf`, `tree`, and `yq`, and
+the desktop adds VLC and gedit.
+
+The `codex-auto`, `claude-auto`, and `opencode-auto` shell aliases start each
+agent with its unattended flags for trusted workspaces.
 
 By default, the VNC service uses TLS for direct TCP connections. When an HTTPS
 reverse proxy terminates TLS before forwarding to port `6901`, set

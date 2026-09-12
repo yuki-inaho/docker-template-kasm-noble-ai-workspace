@@ -16,3 +16,4 @@ skills/
 install_colmap.sh
 **/__pycache__/
 **/*.pyc
+temp/
