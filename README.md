@@ -30,6 +30,12 @@ the desktop adds VLC and gedit.
 The `codex-auto`, `claude-auto`, and `opencode-auto` shell aliases start each
 agent with its unattended flags for trusted workspaces.
 
+`playwright-cli` reuses the Google Chrome shipped in the base image (headless by
+default) and disables the Chromium sandbox through the global
+`~/.playwright/cli.config.json`, so browser automation works without a browser
+download. Other engines and the bundled Chromium still require a separate
+`playwright install`.
+
 By default, the VNC service uses TLS for direct TCP connections. When an HTTPS
 reverse proxy terminates TLS before forwarding to port `6901`, set
 `KASMVNC_REQUIRE_SSL=false` and expose `6901` as an HTTP service.

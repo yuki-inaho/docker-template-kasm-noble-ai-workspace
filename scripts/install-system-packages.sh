@@ -140,7 +140,7 @@ install_cloudflared() {
   local deb="/tmp/cloudflared-${version}.deb"
 
   if command -v cloudflared >/dev/null 2>&1 && \
-     cloudflared --version | grep -Fq "${version}"; then
+     cloudflared --version | grep -Fqw "${version}"; then
     return
   fi
 

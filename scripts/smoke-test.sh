@@ -168,14 +168,22 @@ else
   fail "agent-jsonl-compact reader skills are missing from the default profile"
 fi
 
-plugin_cache="${HOME}/.cache/opencode/packages/@prevalentware/opencode-goal-plugin@latest/node_modules/@prevalentware/opencode-goal-plugin/package.json"
+plugin_package="$(find "${HOME}/.cache/opencode" -path '*/@prevalentware/opencode-goal-plugin/package.json' -print -quit 2>/dev/null)"
 
 if grep -Fq '@prevalentware/opencode-goal-plugin' "${HOME}/.config/opencode/opencode.jsonc" 2>/dev/null && \
    grep -Fq '@prevalentware/opencode-goal-plugin' "${HOME}/.config/opencode/tui.json" 2>/dev/null && \
-   [[ -f "${plugin_cache}" ]]; then
+   [[ -n "${plugin_package}" ]]; then
   pass "OpenCode goal plugin is configured and preinstalled"
 else
   fail "OpenCode goal plugin is missing from opencode.jsonc / tui.json / plugin cache"
+fi
+
+if [[ -f "${HOME}/.playwright/cli.config.json" ]] && \
+   grep -Fq '"channel": "chrome"' "${HOME}/.playwright/cli.config.json" && \
+   grep -Fq '"chromiumSandbox": false' "${HOME}/.playwright/cli.config.json"; then
+  pass "Playwright CLI is configured to reuse the system Chrome without the sandbox"
+else
+  fail "Playwright CLI global config is missing or incomplete"
 fi
 
 if [[ -f "${HOME}/.agents/skills/agmsg/SKILL.md" && \

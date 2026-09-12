@@ -128,6 +128,21 @@ configure_file_manager() {
   fi
 }
 
+configure_playwright_cli() {
+  mkdir -p "${HOME}/.playwright"
+  cat > "${HOME}/.playwright/cli.config.json" <<'JSON'
+{
+  "browser": {
+    "browserName": "chromium",
+    "launchOptions": {
+      "channel": "chrome",
+      "chromiumSandbox": false
+    }
+  }
+}
+JSON
+}
+
 main() {
   mkdir -p "${HOME}/Desktop"
   configure_bashrc
@@ -135,6 +150,7 @@ main() {
   configure_ibus_autostart
   configure_keyboard_autostart
   configure_file_manager
+  configure_playwright_cli
 }
 
 main "$@"

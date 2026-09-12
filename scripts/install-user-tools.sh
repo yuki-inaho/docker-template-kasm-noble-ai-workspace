@@ -194,7 +194,13 @@ install_opencode_goal_plugin() {
 
   grep -Fq '@prevalentware/opencode-goal-plugin' "${HOME}/.config/opencode/opencode.jsonc"
   grep -Fq '@prevalentware/opencode-goal-plugin' "${HOME}/.config/opencode/tui.json"
-  test -f "${HOME}/.cache/opencode/packages/@prevalentware/opencode-goal-plugin@latest/node_modules/@prevalentware/opencode-goal-plugin/package.json"
+
+  local plugin_package
+  plugin_package="$(find "${HOME}/.cache/opencode" -path '*/@prevalentware/opencode-goal-plugin/package.json' -print -quit 2>/dev/null)"
+  if [[ -z "${plugin_package}" ]]; then
+    echo "OpenCode goal plugin package was not found in the opencode cache" >&2
+    return 1
+  fi
 
   rm -rf "${HOME}/.local/share/opencode"
 }
@@ -412,12 +418,8 @@ cleanup_user_caches() {
 
   # Clear every ~/.cache entry except the preinstalled OpenCode plugin store,
   # which must survive so the goal plugin is available without a first-run fetch.
-  local cache_entry
-  for cache_entry in "${HOME}/.cache"/*; do
-    if [[ -e "${cache_entry}" && "${cache_entry}" != "${HOME}/.cache/opencode" ]]; then
-      rm -rf "${cache_entry}"
-    fi
-  done
+  find "${HOME}/.cache" -mindepth 1 -maxdepth 1 \
+    ! -name opencode -exec rm -rf {} + 2>/dev/null || true
   rm -rf \
     "${HOME}/.cargo/git" \
     "${HOME}/.cargo/registry/cache" \
@@ -429,7 +431,7 @@ cleanup_user_caches() {
 
 verify() {
   log "Installed versions"
-  export PATH="${HOME}/.local/bin:${HOME}/.cargo/bin:${PYENV_ROOT}/bin:${PATH}"
+  export PATH="${HOME}/.opencode/bin:${HOME}/.local/bin:${HOME}/.cargo/bin:${PYENV_ROOT}/bin:${PATH}"
 
   # shellcheck disable=SC1090
   source "${NVM_DIR}/nvm.sh"
