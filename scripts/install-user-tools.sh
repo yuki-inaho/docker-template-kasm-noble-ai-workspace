@@ -15,13 +15,16 @@ JUST_VERSION="${JUST_VERSION:-1.58.0}"
 JUST_SHA256="${JUST_SHA256:-4a5cc2f53e6f0f8c59092a6cc38291eb729d46a7dd95d3ae582008881b84931d}"
 CODEX_VERSION="${CODEX_VERSION:-latest}"
 CLAUDE_VERSION="${CLAUDE_VERSION:-latest}"
-RTK_VERSION="${RTK_VERSION:-v0.45.0}"
+OPENCODE_VERSION="${OPENCODE_VERSION:-latest}"
+RTK_VERSION="${RTK_VERSION:-v0.49.0}"
 PIXI_VERSION="${PIXI_VERSION:-0.77.1}"
 PIXI_SHA256="${PIXI_SHA256:-5115a89a9189a2e4e7e8d2f04236a7be586d8f6091dfc9ea869fb3c4a52b6935}"
-HERDR_VERSION="${HERDR_VERSION:-v0.8.2}"
-HERDR_SHA256="${HERDR_SHA256:-976150a14d490c94b243ea2e1a7eb2dfb67f12e36b182db90936f6728e6aecf4}"
+HERDR_VERSION="${HERDR_VERSION:-v0.9.0}"
+HERDR_SHA256="${HERDR_SHA256:-4fa1a01158dd8043da92d31b270780b0dcc10603038d9b61cac4d81ab63fb71f}"
 AGENT_JSONL_COMPACT_VERSION="${AGENT_JSONL_COMPACT_VERSION:-v0.1.0}"
 AGENT_JSONL_COMPACT_SHA256="${AGENT_JSONL_COMPACT_SHA256:-78bf0f1ac03e7ffbb869888e796ab1599facad1a68814f47e749b6e4c4faca46}"
+AGMSG_VERSION="${AGMSG_VERSION:-v1.2.3}"
+PLAYWRIGHT_CLI_VERSION="${PLAYWRIGHT_CLI_VERSION:-latest}"
 PYENV_ROOT="${PYENV_ROOT:-/opt/pyenv}"
 NVM_DIR="${NVM_DIR:-${HOME}/.nvm}"
 BASHRC="${BASHRC:-${HOME}/.bashrc}"
@@ -61,10 +64,10 @@ prepare_environment() {
   mkdir -p "${HOME}/.local/bin" "${HOME}/.cargo/bin" "${HOME}/.config"
   touch "${BASHRC}"
 
-  export PATH="${HOME}/.local/bin:${HOME}/.cargo/bin:${PYENV_ROOT}/bin:${PATH}"
+  export PATH="${HOME}/.opencode/bin:${HOME}/.local/bin:${HOME}/.cargo/bin:${PYENV_ROOT}/bin:${PATH}"
   export PYENV_ROOT NVM_DIR
 
-  append_once 'export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"' "${BASHRC}"
+  append_once 'export PATH="$HOME/.opencode/bin:$HOME/.local/bin:$HOME/.cargo/bin:$PATH"' "${BASHRC}"
   append_once 'export PYENV_ROOT="/opt/pyenv"' "${BASHRC}"
   append_once '[[ -d "$PYENV_ROOT/bin" ]] && export PATH="$PYENV_ROOT/bin:$PATH"' "${BASHRC}"
   append_once 'command -v pyenv >/dev/null 2>&1 && eval "$(pyenv init - bash)"' "${BASHRC}"
@@ -165,6 +168,52 @@ install_codex() {
   fi
 }
 
+install_opencode() {
+  log "Installing OpenCode ${OPENCODE_VERSION}"
+
+  if [[ "${OPENCODE_VERSION}" == "latest" ]]; then
+    retry bash -o pipefail -c \
+      'curl --retry 5 --retry-all-errors -fsSL https://opencode.ai/install | bash -s -- --no-modify-path'
+  else
+    local version="${OPENCODE_VERSION#v}"
+    retry bash -o pipefail -c \
+      "curl --retry 5 --retry-all-errors -fsSL https://opencode.ai/install | bash -s -- --no-modify-path --version ${version}"
+  fi
+
+  test -x "${HOME}/.opencode/bin/opencode"
+}
+
+install_opencode_goal_plugin() {
+  log "Installing OpenCode goal plugin"
+  # shellcheck disable=SC1090
+  source "${NVM_DIR}/nvm.sh"
+  nvm use "${NODE_VERSION}"
+  export PATH="${HOME}/.opencode/bin:${PATH}"
+
+  retry opencode plugin -g @prevalentware/opencode-goal-plugin
+
+  grep -Fq '@prevalentware/opencode-goal-plugin' "${HOME}/.config/opencode/opencode.jsonc"
+  grep -Fq '@prevalentware/opencode-goal-plugin' "${HOME}/.config/opencode/tui.json"
+
+  local plugin_package
+  plugin_package="$(find "${HOME}/.cache/opencode" -path '*/@prevalentware/opencode-goal-plugin/package.json' -print -quit 2>/dev/null)"
+  if [[ -z "${plugin_package}" ]]; then
+    echo "OpenCode goal plugin package was not found in the opencode cache" >&2
+    return 1
+  fi
+
+  rm -rf "${HOME}/.local/share/opencode"
+}
+
+install_playwright_cli() {
+  log "Installing Playwright CLI ${PLAYWRIGHT_CLI_VERSION}"
+  # shellcheck disable=SC1090
+  source "${NVM_DIR}/nvm.sh"
+  nvm use "${NODE_VERSION}"
+
+  retry npm install -g "@playwright/cli@${PLAYWRIGHT_CLI_VERSION}"
+}
+
 install_foundation() {
   prepare_environment
   ensure_pyenv
@@ -179,6 +228,9 @@ install_agent_tools() {
   prepare_environment
   install_codex
   install_claude
+  install_opencode
+  install_opencode_goal_plugin
+  install_playwright_cli
   install_rtk
   verify
   cleanup_user_caches
@@ -270,6 +322,31 @@ install_agent_jsonl_compact() {
   agent-jsonl-compact install-skills
 }
 
+install_agmsg() {
+  log "Installing agmsg ${AGMSG_VERSION}"
+
+  if ! command -v sqlite3 >/dev/null 2>&1; then
+    echo "agmsg requires sqlite3, which must come from the system layer" >&2
+    return 1
+  fi
+
+  if [[ "$(tr -d '[:space:]' < "${HOME}/.agents/skills/agmsg/VERSION" 2>/dev/null)" == "${AGMSG_VERSION}" ]]; then
+    return
+  fi
+
+  local checkout
+  checkout="$(mktemp -d)"
+  retry git clone --quiet --branch "${AGMSG_VERSION}" --depth 1 \
+    https://github.com/fujibee/agmsg.git "${checkout}/agmsg"
+  bash "${checkout}/agmsg/install.sh" --cmd agmsg
+  rm -rf "${checkout}"
+
+  test -f "${HOME}/.agents/skills/agmsg/SKILL.md"
+  test -x "${HOME}/.agents/skills/agmsg/scripts/version.sh"
+  test -f "${HOME}/.config/opencode/skills/agmsg/SKILL.md"
+  test -f "${HOME}/.claude/commands/agmsg.md"
+}
+
 verify_workspace_tools() {
   log "Installed workspace CLI versions"
   export PATH="${HOME}/.local/bin:${PATH}"
@@ -286,6 +363,10 @@ verify_workspace_tools() {
   tree --version
   test -f "${HOME}/.codex/skills/agent-jsonl-compact-reader/SKILL.md"
   test -f "${HOME}/.claude/skills/agent-jsonl-compact-reader/SKILL.md"
+  test -f "${HOME}/.agents/skills/agmsg/SKILL.md"
+  test -x "${HOME}/.agents/skills/agmsg/scripts/version.sh"
+  test -f "${HOME}/.config/opencode/skills/agmsg/SKILL.md"
+  test -f "${HOME}/.claude/commands/agmsg.md"
 }
 
 install_workspace_tools() {
@@ -294,6 +375,7 @@ install_workspace_tools() {
   install_pixi
   install_herdr
   install_agent_jsonl_compact
+  install_agmsg
   verify_workspace_tools
   cleanup_user_caches
 }
@@ -334,8 +416,11 @@ cleanup_user_caches() {
     uv cache clean || true
   fi
 
+  # Clear every ~/.cache entry except the preinstalled OpenCode plugin store,
+  # which must survive so the goal plugin is available without a first-run fetch.
+  find "${HOME}/.cache" -mindepth 1 -maxdepth 1 \
+    ! -name opencode -exec rm -rf {} + 2>/dev/null || true
   rm -rf \
-    "${HOME}/.cache" \
     "${HOME}/.cargo/git" \
     "${HOME}/.cargo/registry/cache" \
     "${HOME}/.cargo/registry/index" \
@@ -346,7 +431,7 @@ cleanup_user_caches() {
 
 verify() {
   log "Installed versions"
-  export PATH="${HOME}/.local/bin:${HOME}/.cargo/bin:${PYENV_ROOT}/bin:${PATH}"
+  export PATH="${HOME}/.opencode/bin:${HOME}/.local/bin:${HOME}/.cargo/bin:${PYENV_ROOT}/bin:${PATH}"
 
   # shellcheck disable=SC1090
   source "${NVM_DIR}/nvm.sh"
@@ -363,7 +448,9 @@ verify() {
   npm --version
   codex --version
   claude --version
+  opencode --version
   rtk --version
+  playwright-cli --version
 }
 
 main() {

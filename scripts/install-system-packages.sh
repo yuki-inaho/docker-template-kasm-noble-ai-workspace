@@ -101,6 +101,7 @@ install_base_packages() {
     emacs \
     exo-utils \
     fonts-noto-cjk \
+    gedit \
     htop \
     ibus \
     ibus-gtk \
@@ -114,6 +115,7 @@ install_base_packages() {
     nautilus \
     nomacs \
     tmux \
+    vlc \
     x11-xkb-utils
 }
 
@@ -130,6 +132,25 @@ install_github_cli() {
 
   apt_get update
   apt_get install -y --no-install-recommends gh
+}
+
+install_cloudflared() {
+  local version="${CLOUDFLARED_VERSION:?CLOUDFLARED_VERSION is required}"
+  local checksum="${CLOUDFLARED_SHA256:?CLOUDFLARED_SHA256 is required}"
+  local deb="/tmp/cloudflared-${version}.deb"
+
+  if command -v cloudflared >/dev/null 2>&1 && \
+     cloudflared --version | grep -Fqw "${version}"; then
+    return
+  fi
+
+  log "Installing cloudflared ${version}"
+  curl --retry 5 --retry-all-errors -fsSL \
+    "https://github.com/cloudflare/cloudflared/releases/download/${version}/cloudflared-linux-amd64.deb" \
+    -o "${deb}"
+  printf '%s  %s\n' "${checksum}" "${deb}" | sha256sum -c -
+  apt_get install -y --no-install-recommends "${deb}"
+  rm -f "${deb}"
 }
 
 configure_passwordless_sudo() {
@@ -159,6 +180,7 @@ cleanup() {
 main() {
   install_base_packages
   install_github_cli
+  install_cloudflared
   configure_passwordless_sudo
   configure_locales
   cleanup

@@ -30,7 +30,7 @@ configure_bashrc() {
   block="$(mktemp)"
   cat > "${block}" <<'BLOCK'
 # >>> kasm-noble-ai-workspace
-export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+export PATH="$HOME/.opencode/bin:$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 export XDG_CONFIG_HOME="$HOME/.config"
 export XDG_CACHE_HOME="$HOME/.cache"
 export XDG_DATA_HOME="$HOME/.local/share"
@@ -48,6 +48,7 @@ export XMODIFIERS=@im=ibus
 
 alias claude-auto='CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 claude --dangerously-skip-permissions'
 alias codex-auto='codex --dangerously-bypass-approvals-and-sandbox'
+alias opencode-auto='opencode --auto'
 
 if [[ $- == *i* ]] && [[ "${AUTO_CD_WORKSPACE:-1}" == "1" ]] && \
    [[ "${PWD}" == "${HOME}" ]] && [[ -d "${WORKSPACE_DIR:-/workspace}" ]]; then
@@ -127,6 +128,21 @@ configure_file_manager() {
   fi
 }
 
+configure_playwright_cli() {
+  mkdir -p "${HOME}/.playwright"
+  cat > "${HOME}/.playwright/cli.config.json" <<'JSON'
+{
+  "browser": {
+    "browserName": "chromium",
+    "launchOptions": {
+      "channel": "chrome",
+      "chromiumSandbox": false
+    }
+  }
+}
+JSON
+}
+
 main() {
   mkdir -p "${HOME}/Desktop"
   configure_bashrc
@@ -134,6 +150,7 @@ main() {
   configure_ibus_autostart
   configure_keyboard_autostart
   configure_file_manager
+  configure_playwright_cli
 }
 
 main "$@"
