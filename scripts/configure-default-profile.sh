@@ -34,6 +34,7 @@ export PATH="$HOME/.opencode/bin:$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 export XDG_CONFIG_HOME="$HOME/.config"
 export XDG_CACHE_HOME="$HOME/.cache"
 export XDG_DATA_HOME="$HOME/.local/share"
+export PLAYWRIGHT_BROWSERS_PATH="/opt/ms-playwright"
 export PYENV_ROOT="/opt/pyenv"
 [[ -d "$PYENV_ROOT/bin" ]] && export PATH="$PYENV_ROOT/bin:$PATH"
 command -v pyenv >/dev/null 2>&1 && eval "$(pyenv init - bash)"
@@ -143,6 +144,96 @@ configure_playwright_cli() {
 JSON
 }
 
+configure_xfce_panel() {
+  local panel_xml="${XFCE_DIR}/xfconf/xfce-perchannel-xml/xfce4-panel.xml"
+
+  if [[ ! -f "${panel_xml}" ]]; then
+    echo "xfce4-panel.xml not found: ${panel_xml}" >&2
+    exit 1
+  fi
+
+  python3 - "${panel_xml}" <<'PANEL_PY'
+import sys
+import xml.etree.ElementTree as ET
+
+path = sys.argv[1]
+tree = ET.parse(path)
+root = tree.getroot()
+
+panels = root.find("property[@name='panels']")
+if panels is None:
+    raise SystemExit("panels property not found")
+panel1 = panels.find("property[@name='panel-1']")
+if panel1 is None:
+    raise SystemExit("panel-1 not found")
+plugin_ids = panel1.find("property[@name='plugin-ids']")
+plugins = root.find("property[@name='plugins']")
+if plugin_ids is None or plugins is None:
+    raise SystemExit("plugin-ids or plugins property not found")
+
+
+def ensure_plugin(plugin_id, kind):
+    name = f"plugin-{plugin_id}"
+    node = plugins.find(f"property[@name='{name}']")
+    if node is None:
+        node = ET.SubElement(
+            plugins, "property", {"name": name, "type": "string", "value": kind}
+        )
+    else:
+        node.set("value", kind)
+    return node
+
+
+def set_property(node, key, ptype, value):
+    child = node.find(f"property[@name='{key}']")
+    if child is None:
+        child = ET.SubElement(node, "property", {"name": key, "type": ptype})
+    child.set("value", value)
+
+
+launcher = ensure_plugin(16, "launcher")
+items = launcher.find("property[@name='items']")
+if items is None:
+    items = ET.SubElement(launcher, "property", {"name": "items", "type": "array"})
+for value in list(items):
+    items.remove(value)
+ET.SubElement(items, "value", {"type": "string", "value": "org.gnome.Nautilus.desktop"})
+
+clock = ensure_plugin(17, "clock")
+set_property(clock, "mode", "uint", "2")
+set_property(clock, "digital-layout", "uint", "0")
+set_property(clock, "digital-date-format", "string", "%Y-%m-%d")
+set_property(clock, "digital-time-format", "string", "%H:%M:%S")
+set_property(clock, "digital-format", "string", "%Y-%m-%d %H:%M:%S")
+set_property(clock, "show-seconds", "bool", "true")
+
+wanted = [16, 17]
+for value in list(plugin_ids):
+    if int(value.get("value")) in wanted:
+        plugin_ids.remove(value)
+
+current = [int(value.get("value")) for value in plugin_ids]
+if 15 in current:
+    insert_at = current.index(15) + 1
+elif 2 in current:
+    insert_at = current.index(2)
+else:
+    insert_at = len(current)
+for offset, plugin_id in enumerate(wanted):
+    plugin_ids.insert(
+        insert_at + offset,
+        ET.Element("value", {"type": "int", "value": str(plugin_id)}),
+    )
+
+ET.indent(tree, space="  ")
+tree.write(path, encoding="UTF-8", xml_declaration=True)
+PANEL_PY
+
+  mkdir -p "${XFCE_DIR}/panel/launcher-16"
+  cp /usr/share/applications/org.gnome.Nautilus.desktop \
+    "${XFCE_DIR}/panel/launcher-16/org.gnome.Nautilus.desktop"
+}
+
 main() {
   mkdir -p "${HOME}/Desktop"
   configure_bashrc
@@ -151,6 +242,7 @@ main() {
   configure_keyboard_autostart
   configure_file_manager
   configure_playwright_cli
+  configure_xfce_panel
 }
 
 main "$@"

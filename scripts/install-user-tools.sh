@@ -7,24 +7,27 @@ if [[ "$(id -u)" -eq 0 ]]; then
 fi
 
 NODE_VERSION="${NODE_VERSION:-22.23.2}"
+NPM_VERSION="${NPM_VERSION:-12.2.0}"
 NVM_VERSION="${NVM_VERSION:-v0.40.2}"
 POETRY_VERSION="${POETRY_VERSION:-1.8.5}"
 UV_VERSION="${UV_VERSION:-0.12.5}"
 RUST_VERSION="${RUST_VERSION:-1.98.0}"
 JUST_VERSION="${JUST_VERSION:-1.58.0}"
 JUST_SHA256="${JUST_SHA256:-4a5cc2f53e6f0f8c59092a6cc38291eb729d46a7dd95d3ae582008881b84931d}"
-CODEX_VERSION="${CODEX_VERSION:-latest}"
-CLAUDE_VERSION="${CLAUDE_VERSION:-latest}"
-OPENCODE_VERSION="${OPENCODE_VERSION:-latest}"
-RTK_VERSION="${RTK_VERSION:-v0.49.0}"
+CODEX_VERSION="${CODEX_VERSION:-0.163.0}"
+CLAUDE_VERSION="${CLAUDE_VERSION:-2.1.306}"
+OPENCODE_VERSION="${OPENCODE_VERSION:-2.1.2}"
+RTK_VERSION="${RTK_VERSION:-v1.0.1}"
 PIXI_VERSION="${PIXI_VERSION:-0.77.1}"
 PIXI_SHA256="${PIXI_SHA256:-5115a89a9189a2e4e7e8d2f04236a7be586d8f6091dfc9ea869fb3c4a52b6935}"
-HERDR_VERSION="${HERDR_VERSION:-v0.9.0}"
-HERDR_SHA256="${HERDR_SHA256:-4fa1a01158dd8043da92d31b270780b0dcc10603038d9b61cac4d81ab63fb71f}"
-AGENT_JSONL_COMPACT_VERSION="${AGENT_JSONL_COMPACT_VERSION:-v0.1.0}"
-AGENT_JSONL_COMPACT_SHA256="${AGENT_JSONL_COMPACT_SHA256:-78bf0f1ac03e7ffbb869888e796ab1599facad1a68814f47e749b6e4c4faca46}"
-AGMSG_VERSION="${AGMSG_VERSION:-v1.2.3}"
-PLAYWRIGHT_CLI_VERSION="${PLAYWRIGHT_CLI_VERSION:-latest}"
+HERDR_VERSION="${HERDR_VERSION:-v0.9.5}"
+HERDR_SHA256="${HERDR_SHA256:-14d9e8bc8b4a9e0118d77c32266f76d461f09b40342eb23752960bd89f59929d}"
+AGENT_JSONL_COMPACT_VERSION="${AGENT_JSONL_COMPACT_VERSION:-v0.2.0}"
+AGENT_JSONL_COMPACT_SHA256="${AGENT_JSONL_COMPACT_SHA256:-6b40ca9b8cc354cb3cc5cc3bf868fb1857981f61d20c625d9f5c8bd472aedf8b}"
+AGMSG_VERSION="${AGMSG_VERSION:-v1.5.3}"
+PLAYWRIGHT_CLI_VERSION="${PLAYWRIGHT_CLI_VERSION:-0.1.22}"
+PLAYWRIGHT_VERSION="${PLAYWRIGHT_VERSION:-1.64.1}"
+PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-/opt/ms-playwright}"
 PYENV_ROOT="${PYENV_ROOT:-/opt/pyenv}"
 NVM_DIR="${NVM_DIR:-${HOME}/.nvm}"
 BASHRC="${BASHRC:-${HOME}/.bashrc}"
@@ -155,63 +158,128 @@ install_node() {
   nvm use "${NODE_VERSION}"
 }
 
+install_npm() {
+  log "Installing npm ${NPM_VERSION}"
+  # shellcheck disable=SC1090
+  source "${NVM_DIR}/nvm.sh"
+  nvm use "${NODE_VERSION}" >/dev/null
+
+  if [[ "$(npm --version)" != "${NPM_VERSION}" ]]; then
+    retry npm install -g --no-audit --no-fund "npm@${NPM_VERSION}"
+  fi
+
+  test "$(npm --version)" = "${NPM_VERSION}"
+}
+
 install_codex() {
   log "Installing Codex CLI ${CODEX_VERSION}"
   # shellcheck disable=SC1090
   source "${NVM_DIR}/nvm.sh"
   nvm use "${NODE_VERSION}"
 
-  if [[ -n "${CODEX_VERSION}" ]]; then
-    retry npm install -g "@openai/codex@${CODEX_VERSION}"
+  if [[ -n "${CODEX_VERSION}" && "${CODEX_VERSION}" != "latest" ]]; then
+    retry npm install -g --no-audit --no-fund "@openai/codex@${CODEX_VERSION}"
+    codex --version | grep -Fq "${CODEX_VERSION}"
   else
-    retry npm install -g @openai/codex
+    retry npm install -g --no-audit --no-fund @openai/codex
   fi
 }
 
 install_opencode() {
-  log "Installing OpenCode ${OPENCODE_VERSION}"
+  log "Installing OpenCode ${OPENCODE_VERSION} (v2 installer)"
 
+  local version="${OPENCODE_VERSION#v}"
   if [[ "${OPENCODE_VERSION}" == "latest" ]]; then
     retry bash -o pipefail -c \
-      'curl --retry 5 --retry-all-errors -fsSL https://opencode.ai/install | bash -s -- --no-modify-path'
+      'curl --retry 5 --retry-all-errors -fsSL https://opencode.ai/v2/install | bash -s -- --no-modify-path'
   else
-    local version="${OPENCODE_VERSION#v}"
     retry bash -o pipefail -c \
-      "curl --retry 5 --retry-all-errors -fsSL https://opencode.ai/install | bash -s -- --no-modify-path --version ${version}"
+      "curl --retry 5 --retry-all-errors -fsSL https://opencode.ai/v2/install | bash -s -- --no-modify-path --version ${version}"
   fi
 
   test -x "${HOME}/.opencode/bin/opencode"
+  if [[ "${OPENCODE_VERSION}" != "latest" ]]; then
+    "${HOME}/.opencode/bin/opencode" --version | grep -Fq "${version}"
+  fi
 }
 
 install_opencode_goal_plugin() {
-  log "Installing OpenCode goal plugin"
+  log "Installing OpenCode goal plugin (v2 configuration)"
   # shellcheck disable=SC1090
   source "${NVM_DIR}/nvm.sh"
-  nvm use "${NODE_VERSION}"
+  nvm use "${NODE_VERSION}" >/dev/null
   export PATH="${HOME}/.opencode/bin:${PATH}"
 
-  retry opencode plugin -g @prevalentware/opencode-goal-plugin
+  retry opencode plugin add "@prevalentware/opencode-goal-plugin"
 
-  grep -Fq '@prevalentware/opencode-goal-plugin' "${HOME}/.config/opencode/opencode.jsonc"
-  grep -Fq '@prevalentware/opencode-goal-plugin' "${HOME}/.config/opencode/tui.json"
-
-  local plugin_package
-  plugin_package="$(find "${HOME}/.cache/opencode" -path '*/@prevalentware/opencode-goal-plugin/package.json' -print -quit 2>/dev/null)"
-  if [[ -z "${plugin_package}" ]]; then
-    echo "OpenCode goal plugin package was not found in the opencode cache" >&2
+  # OpenCode v2 resolves the passwd home (/home/kasm-user) when that directory
+  # exists, and falls back to $HOME otherwise. Accept either location, then
+  # normalize the plugin configuration into the profile Kasm copies at runtime.
+  local build_home="/home/kasm-user"
+  local source_home=""
+  if [[ -f "${HOME}/.config/opencode/opencode.json" ]]; then
+    source_home="${HOME}"
+  elif [[ -f "${build_home}/.config/opencode/opencode.json" ]]; then
+    source_home="${build_home}"
+  else
+    echo "OpenCode did not write an opencode.json in ${HOME} or ${build_home}" >&2
     return 1
   fi
 
+  rm -f "${HOME}/.config/opencode/opencode.jsonc" "${HOME}/.config/opencode/tui.json"
+  install -d -m 0755 "${HOME}/.config/opencode" "${HOME}/.cache/opencode"
+
+  if [[ "${source_home}" != "${HOME}" ]]; then
+    cp -a "${source_home}/.config/opencode/opencode.json" "${HOME}/.config/opencode/opencode.json"
+    if [[ -d "${source_home}/.cache/opencode/npm" ]]; then
+      rm -rf "${HOME}/.cache/opencode/npm"
+      cp -a "${source_home}/.cache/opencode/npm" "${HOME}/.cache/opencode/npm"
+    fi
+  fi
+
+  cat > "${HOME}/.config/opencode/cli.json" <<'JSON'
+{
+  "$schema": "https://opencode.ai/v2/cli.json",
+  "plugins": ["@prevalentware/opencode-goal-plugin"]
+}
+JSON
+
+  grep -Fq '"plugins"' "${HOME}/.config/opencode/opencode.json"
+  grep -Fq '@prevalentware/opencode-goal-plugin' "${HOME}/.config/opencode/opencode.json"
+  grep -Fq '@prevalentware/opencode-goal-plugin' "${HOME}/.config/opencode/cli.json"
+
+  local plugin_package
+  plugin_package="$(find "${HOME}/.cache/opencode/npm" \
+    -path '*/node_modules/@prevalentware/opencode-goal-plugin/package.json' \
+    -print -quit 2>/dev/null)"
+  if [[ -z "${plugin_package}" ]]; then
+    echo "OpenCode goal plugin package was not found in the cache" >&2
+    return 1
+  fi
+
+  if [[ "${source_home}" == "${build_home}" ]]; then
+    rm -rf "${build_home}/.config/opencode" \
+      "${build_home}/.cache/opencode" \
+      "${build_home}/.local/share/opencode"
+  fi
   rm -rf "${HOME}/.local/share/opencode"
 }
 
-install_playwright_cli() {
-  log "Installing Playwright CLI ${PLAYWRIGHT_CLI_VERSION}"
+install_playwright() {
+  log "Installing Playwright ${PLAYWRIGHT_VERSION}, Playwright CLI ${PLAYWRIGHT_CLI_VERSION} and Chromium"
   # shellcheck disable=SC1090
   source "${NVM_DIR}/nvm.sh"
-  nvm use "${NODE_VERSION}"
+  nvm use "${NODE_VERSION}" >/dev/null
 
-  retry npm install -g "@playwright/cli@${PLAYWRIGHT_CLI_VERSION}"
+  retry npm install -g --no-audit --no-fund \
+    "playwright@${PLAYWRIGHT_VERSION}" \
+    "@playwright/cli@${PLAYWRIGHT_CLI_VERSION}"
+
+  install -d -m 0775 "${PLAYWRIGHT_BROWSERS_PATH}"
+  retry env PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH}" \
+    playwright install chromium
+
+  test -n "$(find "${PLAYWRIGHT_BROWSERS_PATH}" -maxdepth 1 -type d -name 'chromium-*' -print -quit)"
 }
 
 install_foundation() {
@@ -221,6 +289,7 @@ install_foundation() {
   install_uv
   install_rust_and_just
   install_node
+  install_npm
   cleanup_user_caches
 }
 
@@ -230,7 +299,7 @@ install_agent_tools() {
   install_claude
   install_opencode
   install_opencode_goal_plugin
-  install_playwright_cli
+  install_playwright
   install_rtk
   verify
   cleanup_user_caches
@@ -290,6 +359,7 @@ install_herdr() {
     "${binary}"
   install -m 0755 "${binary}" "${HOME}/.local/bin/herdr"
   rm -f "${binary}"
+  herdr --version | grep -Fq "${HERDR_VERSION#v}"
 }
 
 install_agent_jsonl_compact() {
@@ -318,6 +388,8 @@ install_agent_jsonl_compact() {
     rm -f "${archive}"
   fi
 
+  agent-jsonl-compact --version | grep -Fq "${AGENT_JSONL_COMPACT_VERSION#v}"
+
   mkdir -p "${HOME}/.codex" "${HOME}/.claude"
   agent-jsonl-compact install-skills
 }
@@ -345,6 +417,7 @@ install_agmsg() {
   test -x "${HOME}/.agents/skills/agmsg/scripts/version.sh"
   test -f "${HOME}/.config/opencode/skills/agmsg/SKILL.md"
   test -f "${HOME}/.claude/commands/agmsg.md"
+  test "$(tr -d '[:space:]' < "${HOME}/.agents/skills/agmsg/VERSION")" = "${AGMSG_VERSION}"
 }
 
 verify_workspace_tools() {
@@ -367,6 +440,7 @@ verify_workspace_tools() {
   test -x "${HOME}/.agents/skills/agmsg/scripts/version.sh"
   test -f "${HOME}/.config/opencode/skills/agmsg/SKILL.md"
   test -f "${HOME}/.claude/commands/agmsg.md"
+  test "$(tr -d '[:space:]' < "${HOME}/.agents/skills/agmsg/VERSION")" = "${AGMSG_VERSION}"
 }
 
 install_workspace_tools() {
@@ -389,6 +463,7 @@ install_claude() {
        ! "${HOME}/.local/bin/claude" --version | grep -Fq "${CLAUDE_VERSION}"; then
     retry env CLAUDE_VERSION="${CLAUDE_VERSION}" bash -o pipefail -c \
       'curl --retry 5 --retry-all-errors -fsSL https://claude.ai/install.sh | bash -s -- "${CLAUDE_VERSION}"'
+    "${HOME}/.local/bin/claude" --version | grep -Fq "${CLAUDE_VERSION}"
   fi
 }
 
@@ -400,6 +475,10 @@ install_rtk() {
   else
     retry bash -o pipefail -c 'curl --retry 5 --retry-all-errors -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh'
   fi
+
+  if [[ -n "${RTK_VERSION}" ]]; then
+    rtk --version | grep -Fq "${RTK_VERSION#v}"
+  fi
 }
 
 cleanup_user_caches() {
@@ -409,7 +488,11 @@ cleanup_user_caches() {
     # shellcheck disable=SC1090
     source "${NVM_DIR}/nvm.sh"
     nvm cache clear || true
-    npm cache clean --force || true
+    # BuildKit provides /tmp/npm-cache as a cache mount; clearing it would
+    # defeat layer-to-layer reuse. Only clean caches that live in the layer.
+    if [[ "${NPM_CONFIG_CACHE:-}" != /tmp/* ]]; then
+      npm cache clean --force || true
+    fi
   fi
 
   if command -v uv >/dev/null 2>&1; then
@@ -435,12 +518,15 @@ verify() {
 
   # shellcheck disable=SC1090
   source "${NVM_DIR}/nvm.sh"
+  nvm use "${NODE_VERSION}" >/dev/null
   # shellcheck disable=SC1091
   source "${HOME}/.cargo/env"
 
   pyenv --version
   poetry --version
   uv --version
+  test "$(npm --version)" = "${NPM_VERSION}"
+  playwright --version
   rustc --version
   cargo --version
   just --version

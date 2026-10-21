@@ -56,6 +56,7 @@ install_base_packages() {
     cmake \
     curl \
     dconf-cli \
+    debconf-utils \
     direnv \
     fd-find \
     fzf \
@@ -76,6 +77,7 @@ install_base_packages() {
     llvm \
     make \
     openssh-client \
+    openssh-server \
     pigz \
     pkg-config \
     python3-venv \
@@ -171,6 +173,16 @@ configure_locales() {
   locale-gen
 }
 
+remove_unneeded_base_tools() {
+  log "Removing VS Code shipped by the base image"
+
+  if [[ -e /usr/share/code || -L /usr/bin/code ]]; then
+    rm -rf /usr/share/code /usr/share/code-insiders
+    rm -f /usr/bin/code /usr/bin/code-insiders
+    rm -f /usr/share/applications/code.desktop /usr/share/applications/code-insiders.desktop
+  fi
+}
+
 cleanup() {
   log "Cleaning APT metadata"
   apt_get clean
@@ -183,6 +195,7 @@ main() {
   install_cloudflared
   configure_passwordless_sudo
   configure_locales
+  remove_unneeded_base_tools
   cleanup
 }
 

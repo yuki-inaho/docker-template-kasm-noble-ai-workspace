@@ -48,8 +48,13 @@ jobs:
             KASM_REPOSITORY=kasmweb/ubuntu-noble-nvidia
             KASM_VERSION=1.19.0-rolling-weekly
             NODE_VERSION=22.23.2
+            NPM_VERSION=12.2.0
             POETRY_VERSION=1.8.5
             CODEX_VERSION=latest
+            CLAUDE_VERSION=latest
+            OPENCODE_VERSION=latest
+            PLAYWRIGHT_VERSION=latest
+            PLAYWRIGHT_CLI_VERSION=latest
 
       - name: Test full image after the cold standard build
         uses: docker/build-push-action@v7
@@ -64,5 +69,10 @@ jobs:
             KASM_REPOSITORY=kasmweb/ubuntu-noble-nvidia
             KASM_VERSION=1.19.0-rolling-weekly
             NODE_VERSION=22.23.2
+            NPM_VERSION=12.2.0
             POETRY_VERSION=1.8.5
             CODEX_VERSION=latest
+            CLAUDE_VERSION=latest
+            OPENCODE_VERSION=latest
+            PLAYWRIGHT_VERSION=latest
+            PLAYWRIGHT_CLI_VERSION=latest

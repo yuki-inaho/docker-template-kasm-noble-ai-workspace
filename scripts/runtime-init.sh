@@ -80,6 +80,18 @@ configure_japanese_input() {
   fi
 }
 
+configure_remote_access() {
+  if [[ -s "${HOME}/.ssh/authorized_keys" ]] && \
+     ! pgrep -x sshd >/dev/null 2>&1; then
+    run_sudo /usr/local/bin/kasm-remote-access start-ssh || true
+  fi
+
+  if [[ -s /etc/cloudflared/token ]] && \
+     ! pgrep -f 'cloudflared.*tunnel run' >/dev/null 2>&1; then
+    run_sudo /usr/local/bin/kasm-remote-access start-tunnel || true
+  fi
+}
+
 configure_file_manager() {
   if command -v xdg-mime >/dev/null 2>&1 && \
      [[ -f /usr/share/applications/org.gnome.Nautilus.desktop ]]; then
@@ -98,6 +110,7 @@ main() {
   configure_workspace
   configure_git_identity
   configure_japanese_input
+  configure_remote_access
   configure_file_manager
   log "Runtime settings complete"
 }
