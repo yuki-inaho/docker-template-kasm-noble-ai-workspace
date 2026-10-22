@@ -82,6 +82,8 @@ jobs:
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
+          load: true
+          tags: local/kasm-runtime:test
           target: test-standard
           platforms: linux/amd64
           pull: true
@@ -99,6 +101,16 @@ jobs:
             OPENCODE_VERSION=2.1.2
             PLAYWRIGHT_VERSION=1.64.1
             PLAYWRIGHT_CLI_VERSION=0.1.22
+
+      - name: Verify HTTPS authentication and two browser viewers
+        run: bash scripts/test-kasmvnc-runtime.sh local/kasm-runtime:test
+
+      - name: Save runtime screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: kasmvnc-runtime
+          path: runtime-evidence/
+          if-no-files-found: error
 
       - name: Test full image
         uses: docker/build-push-action@v7

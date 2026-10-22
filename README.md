@@ -79,6 +79,7 @@ Reviewed on 2026-10-22 against upstream advisories and the installed packages in
 
 | Component | Finding and action |
 | --- | --- |
+| KasmVNC | Install **1.5.0-1+yuki20261022**, built from [the reviewed fork](https://github.com/yuki-inaho/KasmVNC/pull/1) with upstream #372, #362 and #369 and **X.Org 21.1.25**. The release URL and SHA-256 are pinned independently of the Kasm base image. |
 | Node.js | Update 22.23.2 to **22.23.4**, the [October security release](https://nodejs.org/en/blog/release/v22.23.4), including TLS, DNS, Brotli and bundled CA fixes. |
 | npm | Update 12.2.0 to **12.2.1**, the compatible [patch release](https://github.com/npm/cli/releases/tag/v12.2.1) with dependency updates. This is not described as a separate emergency advisory. |
 | Ubuntu CA bundle | The base contains 20240203. Require **20260816ubuntu0.24.04.1** or later for [USN-8944-1](https://ubuntu.com/security/notices/USN-8944-1), which removes the distrusted emSign root. |
@@ -210,3 +211,18 @@ port with `https://` and sign in as `kasm_user`.
 By default, the VNC service uses TLS for direct TCP connections. When an HTTPS
 reverse proxy terminates TLS before forwarding to port `6901`, set
 `KASMVNC_REQUIRE_SSL=false` and expose `6901` as an HTTP service.
+
+## KasmVNC fork validation
+
+The package is published by [the Noble build](https://github.com/yuki-inaho/KasmVNC/actions/runs/39718135933).
+The build passed four AddressSanitizer/LeakSanitizer regressions and verified the
+embedded X.Org version. The unchanged web client is taken from the checksum-verified
+official 1.5.0 package; the server is built from the pinned fork commit.
+
+The image CI checks installed versions, HTTPS Basic authentication, WebSocket
+connections and rendered desktop pixels for two simultaneous browser viewers
+before publishing standard and full images. These checks do not substitute for
+Japanese IME interaction or NVIDIA hardware acceptance on a GPU host.
+
+Existing Vast.ai instances need an image pull and container recreation to use
+the updated image. Building or publishing an image does not update running instances.
