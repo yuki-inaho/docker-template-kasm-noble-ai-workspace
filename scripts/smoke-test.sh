@@ -262,6 +262,7 @@ check_command cargo cargo --version
 check_command just just --version
 check_command node node --version
 check_command npm npm --version
+check_command image-security-check image-security-check
 check_command codex codex --version
 check_command claude claude --version
 check_command opencode opencode --version

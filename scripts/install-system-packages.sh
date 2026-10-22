@@ -9,7 +9,8 @@ fi
 export DEBIAN_FRONTEND=noninteractive
 
 apt_get() {
-  apt-get -o Acquire::Retries=5 "$@"
+  apt-get -o Acquire::Retries=5 -o APT::Update::Error-Mode=any \
+    -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold "$@"
 }
 
 log() {
@@ -44,9 +45,16 @@ install_base_packages() {
   # regenerate every locale inherited from the base configuration.
   ensure_locales
 
-  # Intentionally no apt-get upgrade here. Updating the tagged base image and
-  # rebuilding is safer and more reproducible than upgrading every package in
-  # an application layer.
+  # A fixed Kasm tag can predate Ubuntu security fixes. Refresh inherited
+  # packages too; installing only our additional packages leaves them vulnerable.
+  # Limit locale regeneration before libc/locales maintainer scripts run.
+  find /var/lib/locales/supported.d -maxdepth 1 -type f -delete
+  log "Updating inherited packages from the configured APT repositories"
+  apt_get upgrade -y --with-new-pkgs --no-remove
+  update-ca-certificates
+  dpkg --compare-versions "$(dpkg-query -W -f='${Version}' ca-certificates)" \
+    ge 20260816ubuntu0.24.04.1
+
   apt_get install -y --no-install-recommends \
     apt-transport-https \
     bzip2 \

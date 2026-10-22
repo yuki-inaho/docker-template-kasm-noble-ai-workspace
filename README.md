@@ -48,6 +48,13 @@ download.
 
 ## Non-interactive APT upgrades
 
+Builds update inherited packages with `apt-get upgrade --with-new-pkgs --no-remove`
+before installing additional tools. This includes security fixes for the Ubuntu
+userland and updates from configured third-party repositories (including Chrome).
+APT index failures stop the build instead of silently using stale metadata.
+Local configuration files are preserved. Exact APT versions depend on the
+repositories at build time; the Kasm tag alone does not make the image immutable.
+
 The image is preseeded so `sudo apt update && sudo apt upgrade` does not ask the
 debconf questions that a desktop container normally shows:
 
@@ -64,6 +71,36 @@ debconf questions that a desktop container normally shows:
   `--force-confold` to preserve local configuration files.
 
 Run `image-smoke-test` inside the container to verify these settings.
+
+### October 2026 security refresh
+
+Reviewed on 2026-10-22 against upstream advisories and the installed packages in
+`kasmweb/ubuntu-noble-nvidia:1.19.0`:
+
+| Component | Finding and action |
+| --- | --- |
+| Node.js | Update 22.23.2 to **22.23.4**, the [October security release](https://nodejs.org/en/blog/release/v22.23.4), including TLS, DNS, Brotli and bundled CA fixes. |
+| npm | Update 12.2.0 to **12.2.1**, the compatible [patch release](https://github.com/npm/cli/releases/tag/v12.2.1) with dependency updates. This is not described as a separate emergency advisory. |
+| Ubuntu CA bundle | The base contains 20240203. Require **20260816ubuntu0.24.04.1** or later for [USN-8944-1](https://ubuntu.com/security/notices/USN-8944-1), which removes the distrusted emSign root. |
+| Ubuntu userland | Refresh inherited packages, including OpenSSL, curl, OpenSSH, xz and Chrome, rather than only installing extra development packages. |
+| Browsers | Require Chrome **156.0.8078.47** or later ([stable security release](https://chromereleases.googleblog.com/2026/10/stable-channel-update-for-desktop_02018666648.html)). Refresh the optional Chromium snapshot from revision 1684548 (154.0.8020.0) to **1724358 (158.0.8117.0)**, with a pinned SHA-256. Snapshots remain development builds, not stable security releases. |
+| PHP | No PHP packages or executable were found in the inspected base; this template does not install PHP. If a future base adds Ubuntu PHP 8.3, require **8.3.6-0ubuntu0.24.04.13** or later for [USN-8948-1](https://ubuntu.com/security/notices/USN-8948-1). |
+| Linux kernel | No kernel image package is installed here. Containers [share the host kernel](https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-container/). The host operator must apply the notice for its kernel flavour, for example [USN-8917-1](https://ubuntu.com/security/notices/USN-8917-1), and reboot where required. |
+
+`image-security-check` runs as part of both image smoke tests. It checks the
+reviewed minimum versions and absence of the distrusted root in both Ubuntu's
+and Node's CA bundles. It is a regression check, not a complete vulnerability
+scanner; application-specific certificate bundles and mounted user environments
+need their own updates. PHP installed after deployment also needs its own update.
+The host kernel and NVIDIA driver are outside the Docker image update boundary.
+
+Playwright **1.64.1** was the latest stable npm release at review time. Its
+[browser manifest](https://github.com/microsoft/playwright/blob/v1.64.1/packages/playwright-core/browsers.json)
+still pins Chromium **156.0.8078.4**, older than the patched Chrome stable build.
+That bundled browser is retained for Playwright compatibility and is **not
+claimed fully patched** by this refresh. Use Playwright's `channel: 'chrome'`
+for browsing untrusted sites; `playwright-cli` already defaults to that channel.
+Update Playwright and its bundled browsers when upstream ships a suitable release.
 
 ## Desktop defaults
 
@@ -140,6 +177,22 @@ tools such as `xdotool` do not reproduce browser-to-KasmVNC keyboard handling.
 docker build --target standard -t yukiinaho/kasm-noble-ai:latest .
 docker build --target full -t yukiinaho/kasm-noble-ai:full .
 ```
+
+For a security rebuild, refresh the base and invalidate the APT layer explicitly:
+
+```bash
+docker build --pull --build-arg SECURITY_REFRESH="$(date -u +%Y%m%dT%H%M%SZ)" \
+  --target test-standard -t kasm-noble-ai:security-test .
+```
+
+`--pull` alone does not rerun a cached APT layer if the base tag is unchanged.
+CI passes one `SECURITY_REFRESH` value per workflow run/attempt to all test and
+publish targets, refreshing packages once and reusing that layer within the run.
+Custom full-image snapshots must set both `CHROMIUM_REVISION` and
+`CHROMIUM_SHA256`; the build rejects an archive that does not match the checksum.
+After the refreshed image is published, pull it and recreate containers to use
+it; a Git push or restarting an existing container does not replace its image.
+Back up any data stored outside persistent volumes before recreation.
 
 Tool versions are pinned in the `Dockerfile` (`NPM_VERSION`, `CODEX_VERSION`,
 `CLAUDE_VERSION`, `OPENCODE_VERSION`, `PLAYWRIGHT_VERSION`, `PLAYWRIGHT_CLI_VERSION`,

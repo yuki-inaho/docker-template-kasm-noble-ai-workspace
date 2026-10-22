@@ -7,6 +7,7 @@ if [[ "$(id -u)" -ne 0 ]]; then
 fi
 
 revision="${CHROMIUM_REVISION:-}"
+checksum="${CHROMIUM_SHA256:?CHROMIUM_SHA256 is required}"
 install_dir="/opt/chromium"
 snapshot_base="https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64"
 tmp_dir="$(mktemp -d)"
@@ -31,6 +32,7 @@ printf '[chromium] Installing snapshot revision %s\n' "${revision}"
 curl --retry 5 --retry-all-errors -fL --progress-bar \
   -o "${archive}" \
   "${snapshot_base}%2F${revision}%2Fchrome-linux.zip?alt=media"
+printf '%s  %s\n' "${checksum}" "${archive}" | sha256sum -c -
 
 rm -rf "${install_dir}"
 mkdir -p "${install_dir}"

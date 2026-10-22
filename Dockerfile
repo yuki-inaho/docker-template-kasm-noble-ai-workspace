@@ -9,9 +9,9 @@ FROM ${KASM_REPOSITORY}:${KASM_VERSION} AS common
 
 ARG KASM_REPOSITORY
 ARG KASM_VERSION
-ARG CHROMIUM_REVISION=1684548
-ARG NODE_VERSION=22.23.2
-ARG NPM_VERSION=12.2.0
+ARG SECURITY_REFRESH=2026-10-22
+ARG NODE_VERSION=22.23.4
+ARG NPM_VERSION=12.2.1
 ARG NVM_VERSION=v0.40.2
 ARG POETRY_VERSION=1.8.5
 ARG UV_VERSION=0.12.5
@@ -60,6 +60,7 @@ WORKDIR ${HOME}
 COPY --chmod=0755 scripts/install-system-packages.sh /opt/image-build/install-system-packages.sh
 
 RUN set -x && \
+    echo "Security refresh: ${SECURITY_REFRESH}" && \
     CLOUDFLARED_VERSION="${CLOUDFLARED_VERSION}" \
     CLOUDFLARED_SHA256="${CLOUDFLARED_SHA256}" \
     /opt/image-build/install-system-packages.sh
@@ -184,7 +185,7 @@ USER root
 # our one-time runtime initialization. The original script must remain alive or
 # Kasm will restart it continuously.
 # ---------------------------------------------------------------------------
-COPY --chmod=0755 scripts/runtime-init.sh scripts/custom-startup.sh scripts/smoke-test.sh scripts/vnc-startup.sh /opt/image-build/
+COPY --chmod=0755 scripts/runtime-init.sh scripts/custom-startup.sh scripts/smoke-test.sh scripts/security-check.sh scripts/vnc-startup.sh /opt/image-build/
 
 RUN set -x && \
     install -m 0755 /opt/image-build/runtime-init.sh /dockerstartup/runtime-init.sh && \
@@ -204,6 +205,7 @@ RUN set -x && \
     fi && \
     install -m 0755 /opt/image-build/custom-startup.sh /dockerstartup/custom_startup.sh && \
     install -m 0755 /opt/image-build/smoke-test.sh /usr/local/bin/image-smoke-test && \
+    install -m 0755 /opt/image-build/security-check.sh /usr/local/bin/image-security-check && \
     install -d -m 2775 -o 1000 -g 0 /workspace && \
     install -d -m 0755 -o 1000 -g 0 /home/kasm-user && \
     rm -rf /opt/image-build
@@ -243,14 +245,16 @@ FROM common AS standard
 # that already have the standard image pull only this additional layer.
 FROM standard AS full
 
-ARG CHROMIUM_REVISION
+ARG CHROMIUM_REVISION=1724358
+ARG CHROMIUM_SHA256=92b3416a0363025cde6c4a00b42234b94f7d9f68ee0fe8dcc3628051264c56e3
 
 USER root
 
 COPY --chmod=0755 scripts/install-chromium.sh /tmp/install-chromium.sh
 
 RUN set -x && \
-    CHROMIUM_REVISION="${CHROMIUM_REVISION}" /tmp/install-chromium.sh && \
+    CHROMIUM_REVISION="${CHROMIUM_REVISION}" \
+    CHROMIUM_SHA256="${CHROMIUM_SHA256}" /tmp/install-chromium.sh && \
     rm -f /tmp/install-chromium.sh
 
 ENV IMAGE_VARIANT=full \

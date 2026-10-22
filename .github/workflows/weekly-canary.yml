@@ -45,10 +45,11 @@ jobs:
           push: false
           no-cache: true
           build-args: |
+            SECURITY_REFRESH=${{ github.run_id }}-${{ github.run_attempt }}
             KASM_REPOSITORY=kasmweb/ubuntu-noble-nvidia
             KASM_VERSION=1.19.0-rolling-weekly
-            NODE_VERSION=22.23.2
-            NPM_VERSION=12.2.0
+            NODE_VERSION=22.23.4
+            NPM_VERSION=12.2.1
             POETRY_VERSION=1.8.5
             CODEX_VERSION=latest
             CLAUDE_VERSION=latest
@@ -66,10 +67,11 @@ jobs:
           pull: false
           push: false
           build-args: |
+            SECURITY_REFRESH=${{ github.run_id }}-${{ github.run_attempt }}
             KASM_REPOSITORY=kasmweb/ubuntu-noble-nvidia
             KASM_VERSION=1.19.0-rolling-weekly
-            NODE_VERSION=22.23.2
-            NPM_VERSION=12.2.0
+            NODE_VERSION=22.23.4
+            NPM_VERSION=12.2.1
             POETRY_VERSION=1.8.5
             CODEX_VERSION=latest
             CLAUDE_VERSION=latest

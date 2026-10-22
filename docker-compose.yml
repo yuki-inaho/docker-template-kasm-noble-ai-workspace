@@ -5,8 +5,8 @@ services:
       args:
         KASM_REPOSITORY: "kasmweb/ubuntu-noble-nvidia"
         KASM_VERSION: "1.19.0"
-        NODE_VERSION: "22.23.2"
-        NPM_VERSION: "12.2.0"
+        NODE_VERSION: "22.23.4"
+        NPM_VERSION: "12.2.1"
         POETRY_VERSION: "1.8.5"
         CODEX_VERSION: "0.163.0"
         CLAUDE_VERSION: "2.1.306"
