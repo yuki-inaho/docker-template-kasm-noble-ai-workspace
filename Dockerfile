@@ -179,16 +179,16 @@ RUN set -x && /opt/image-build/configure-default-profile.sh
 USER root
 
 # Reviewed KasmVNC fork package; independently pinned from the Kasm base tag.
-ARG KASMVNC_PACKAGE_VERSION=1.5.0-1+yuki20261022
-ARG KASMVNC_DEB_URL=https://github.com/yuki-inaho/KasmVNC/releases/download/v1.5.0-noble-4c551b7b410b/kasmvncserver_noble_amd64.deb
-ARG KASMVNC_DEB_SHA256=cca0dafd37819add492d2f6bd020d41f2ea24e6574b4fe4525095eb9b6a67856
+ARG KASMVNC_PACKAGE_VERSION=1.5.2-1+yuki20261026
+ARG KASMVNC_DEB_URL=https://github.com/yuki-inaho/KasmVNC/releases/download/v1.5.2-noble-de183a9e9288/kasmvncserver_noble_amd64.deb
+ARG KASMVNC_DEB_SHA256=e2342f4ded628d20850067658f89bd41cd52b26037d92df07b12b1145c987543
 COPY --chmod=0755 scripts/install-kasmvnc.sh /opt/image-build/install-kasmvnc.sh
 RUN KASMVNC_PACKAGE_VERSION="${KASMVNC_PACKAGE_VERSION}" \
     KASMVNC_DEB_URL="${KASMVNC_DEB_URL}" \
     KASMVNC_DEB_SHA256="${KASMVNC_DEB_SHA256}" \
     /opt/image-build/install-kasmvnc.sh
 
-LABEL org.opencontainers.image.kasmvnc.revision="4c551b7b410b04525c3b41fa56224bb5c914519a"
+LABEL org.opencontainers.image.kasmvnc.revision="de183a9e9288a425979250b58943f03ab2e1cbed"
 
 # ---------------------------------------------------------------------------
 # Stage 8: startup hooks and runtime wiring
