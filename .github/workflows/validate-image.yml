@@ -7,6 +7,7 @@ on:
       - Dockerfile
       - .dockerignore
       - scripts/**
+      - tests/**
       - .github/workflows/validate-image.yml
   workflow_dispatch:
 
@@ -60,6 +61,15 @@ jobs:
             OPENCODE_VERSION=2.1.2
             PLAYWRIGHT_VERSION=1.64.1
             PLAYWRIGHT_CLI_VERSION=0.1.22
+
+      - name: Run KasmVNC installer policy tests
+        run: |
+          docker run --rm --network none --user 0 \
+            --tmpfs /tmp:rw,exec,nosuid,nodev \
+            --mount type=bind,src="$PWD",dst=/repo,readonly \
+            --workdir /repo --env PYTHONDONTWRITEBYTECODE=1 \
+            --entrypoint python3 local/kasm-runtime:test \
+            -m unittest discover -s tests -p test_kasmvnc_install_policy.py -v
 
       - name: Verify HTTPS authentication and two browser viewers
         run: bash scripts/test-kasmvnc-runtime.sh local/kasm-runtime:test

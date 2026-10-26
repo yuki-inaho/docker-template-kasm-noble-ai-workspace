@@ -21,12 +21,34 @@ printf '%s  %s\n' "$KASMVNC_DEB_SHA256" "$package_dir/kasmvnc.deb" | sha256sum -
 [[ "$(dpkg-deb -f "$package_dir/kasmvnc.deb" Architecture)" == amd64 ]]
 [[ "$(dpkg-deb -f "$package_dir/kasmvnc.deb" Version)" == "$KASMVNC_PACKAGE_VERSION" ]]
 
+installed_version="$(dpkg-query -W -f='${Version}' kasmvncserver 2>/dev/null || true)"
+if [[ -n "$installed_version" ]]; then
+  echo "kasmvncserver before: ${installed_version}"
+  if dpkg --compare-versions "$installed_version" gt "$KASMVNC_PACKAGE_VERSION"; then
+    echo "Refusing downgrade: installed ${installed_version} is newer than target ${KASMVNC_PACKAGE_VERSION}" >&2
+    exit 1
+  fi
+else
+  echo "kasmvncserver before: none"
+fi
+
 export DEBIAN_FRONTEND=noninteractive
 apt-get -o Acquire::Retries=5 -o APT::Update::Error-Mode=any update
 apt-get -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
   install -y --no-install-recommends "$package_dir/kasmvnc.deb"
-[[ "$(dpkg-query -W -f='${Version}' kasmvncserver)" == "$KASMVNC_PACKAGE_VERSION" ]]
-Xvnc -version 2>&1 | tee "$package_dir/xvnc-version"
-grep -Fq '12101025' "$package_dir/xvnc-version"
+installed_after="$(dpkg-query -W -f='${Version}' kasmvncserver)"
+echo "kasmvncserver after: ${installed_after}"
+[[ "$installed_after" == "$KASMVNC_PACKAGE_VERSION" ]] ||
+  { echo "Installed version mismatch: expected ${KASMVNC_PACKAGE_VERSION}, got ${installed_after}" >&2; exit 1; }
+
+xvnc_output="$(Xvnc -version 2>&1)"
+printf '%s\n' "$xvnc_output" | tee "$package_dir/xvnc-version"
+xorg_version="$(printf '%s\n' "$xvnc_output" | sed -n 's/.*Underlying X server release //p')"
+[[ "$xorg_version" =~ ^[0-9]+$ ]] ||
+  { echo "Cannot determine embedded X.Org version" >&2; exit 1; }
+if (( 10#$xorg_version < 12101025 )); then
+  echo "Embedded X.Org ${xorg_version} is below required 12101025" >&2
+  exit 1
+fi
 apt-get clean
 rm -rf /var/lib/apt/lists/*

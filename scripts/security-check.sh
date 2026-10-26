@@ -26,7 +26,7 @@ require_version google-chrome-stable \
   "$(dpkg-query -W -f='${Version}' google-chrome-stable)" 156.0.8078.47-1
 
 require_version kasmvncserver \
-  "$(dpkg-query -W -f='${Version}' kasmvncserver)" 1.5.0-1+yuki20261022
+  "$(dpkg-query -W -f='${Version}' kasmvncserver)" 1.5.2-1+yuki20261026
 xorg_version="$(Xvnc -version 2>&1 | sed -n 's/.*Underlying X server release //p')"
 [[ "$xorg_version" =~ ^[0-9]+$ ]] || { echo '[FAIL] Cannot determine embedded X.Org version' >&2; exit 1; }
 require_version X.Org "$xorg_version" 12101025
