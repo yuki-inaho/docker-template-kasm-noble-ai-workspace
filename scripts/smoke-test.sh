@@ -285,11 +285,11 @@ check_command google-chrome bash -lc 'google-chrome --version 2>/dev/null'
 check_ibus_hotkeys
 check_japanese_keyboard_profile
 
-if [[ -f "${HOME}/.codex/skills/agent-jsonl-compact-reader/SKILL.md" && \
-      -f "${HOME}/.claude/skills/agent-jsonl-compact-reader/SKILL.md" ]]; then
-  pass "agent-jsonl-compact reader skills are installed for Codex and Claude"
+if grep -q 'agent-jsonl-compact sessions' "${HOME}/.codex/skills/agent-jsonl-compact-reader/SKILL.md" && \
+   grep -q 'agent-jsonl-compact sessions' "${HOME}/.claude/skills/agent-jsonl-compact-reader/SKILL.md"; then
+  pass "agent-jsonl-compact session reader skills are installed for Codex and Claude"
 else
-  fail "agent-jsonl-compact reader skills are missing from the default profile"
+  fail "agent-jsonl-compact session reader skills are missing from the default profile"
 fi
 
 plugin_package="$(find "${HOME}/.cache/opencode/npm" \
