@@ -80,7 +80,7 @@ jobs:
             --mount type=bind,src="$PWD",dst=/repo,readonly \
             --workdir /repo --env PYTHONDONTWRITEBYTECODE=1 \
             --entrypoint python3 local/kasm-runtime:test \
-            -m unittest discover -s tests -p test_tool_updates.py -v
+            -m unittest discover -s tests -p 'test_tool*.py' -v
 
       - name: Verify HTTPS authentication and two browser viewers
         run: bash scripts/test-kasmvnc-runtime.sh local/kasm-runtime:test

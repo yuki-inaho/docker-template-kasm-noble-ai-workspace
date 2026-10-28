@@ -121,6 +121,14 @@ version. Node LTS migration reinstalls global packages without npm lifecycle
 scripts, so user-added packages that need build scripts may require a manual
 rebuild. The updater does not restart the instance.
 
+Before installing npm, Codex and Playwright updates, the updater checks their
+public dependency names and versions against [OSV](https://osv.dev/). A known
+malware advisory or an unavailable OSV service stops that npm update. Other
+advisories are logged for review, and the installed tree is checked again.
+The updater also applies targeted fixes for two vulnerable libraries bundled
+with npm 12.2.1. These checks do not cover every tool or detect unknown malware,
+compromised maintainers or malicious releases without an advisory.
+
 `workspace-update-tools --once` runs the same updater on demand. Set
 `AUTO_UPDATE_TOOLS=0` to disable the background worker. Its log is
 `~/.local/state/kasm-workspace/tool-update.log`; failures are retried after one

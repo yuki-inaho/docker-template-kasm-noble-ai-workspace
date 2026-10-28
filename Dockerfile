@@ -182,6 +182,8 @@ USER root
 COPY assets/AI-SETUP.md /usr/local/share/kasm-noble-ai-workspace/AI-SETUP.md
 COPY --chmod=0755 scripts/workspace-update-tools.sh /usr/local/bin/workspace-update-tools
 COPY --chmod=0755 scripts/update-system-browsers.sh /usr/local/bin/update-system-browsers
+COPY --chmod=0755 scripts/audit-npm-dependencies.py /usr/local/bin/audit-npm-dependencies.py
+COPY --chmod=0755 scripts/patch-npm-bundled.py /usr/local/bin/patch-npm-bundled.py
 
 # Resolve current upstream releases at build time; the run id invalidates this
 # layer for each scheduled publish without rebuilding stable earlier layers.

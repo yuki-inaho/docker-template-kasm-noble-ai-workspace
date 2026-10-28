@@ -47,8 +47,33 @@ class ToolUpdateTest(unittest.TestCase):
         fake = self.bin / "fake"
         fake.write_text("#!/bin/sh\nprintf '%s\\n' \"$(basename \"$0\")\" >> \"$FAKE_CALLS\"\n")
         fake.chmod(0o755)
-        for name in ("npm", "playwright", "claude", "opencode", "rustup", "uv", "sudo"):
+        for name in ("playwright", "claude", "opencode", "rustup", "uv", "sudo"):
             (self.bin / name).symlink_to(fake)
+        npm = self.bin / "npm"
+        npm.write_text('''#!/usr/bin/python3
+import json, os, pathlib, sys
+args = sys.argv[1:]
+names = ("npm", "@openai/codex", "playwright", "@playwright/cli")
+if "--package-lock-only" in args:
+    prefix = pathlib.Path.cwd()
+    data = {"packages": {"node_modules/" + n: {"version": "1.0.0"} for n in names}}
+    (prefix / "package-lock.json").write_text(json.dumps(data))
+elif "ls" in args:
+    print(json.dumps({"dependencies": {n: {"version": "1.0.0"} for n in names}}))
+elif "install" in args and "-g" in args:
+    pathlib.Path(os.environ["FAKE_NPM_GLOBAL"]).write_text("installed")
+''')
+        npm.chmod(0o755)
+        python = self.bin / "python3"
+        python.write_text('''#!/bin/sh
+if [ "$1" = /usr/local/bin/audit-npm-dependencies.py ]; then
+  if [ "$2" = --lock ] && [ "${FAKE_MALWARE:-0}" = 1 ]; then exit 1; fi
+  exit 0
+fi
+if [ "$1" = /usr/local/bin/patch-npm-bundled.py ]; then exit 0; fi
+exec /usr/bin/python3 "$@"
+''')
+        python.chmod(0o755)
         curl = self.bin / "curl"
         curl.write_text('''#!/usr/bin/python3
 import hashlib, json, os, pathlib, shutil, sys
@@ -75,7 +100,7 @@ else:
         curl.chmod(0o755)
         self.env = dict(os.environ, HOME=str(self.home), PATH=f"{self.bin}:/usr/bin:/bin",
                         FAKE_HERDR=str(self.herdr), FAKE_AJC=str(self.ajc), FAKE_UV=str(self.uv),
-                        FAKE_CALLS=str(root / "calls"))
+                        FAKE_CALLS=str(root / "calls"), FAKE_NPM_GLOBAL=str(root / "npm-global"))
 
     def run_update(self):
         return subprocess.run(["bash", str(SCRIPT), "--once"], env=self.env,
@@ -99,6 +124,13 @@ else:
         self.assertIn("herdr: FAILED", result.stdout)
         self.assertIn("agent-jsonl-compact: OK", result.stdout)
         self.assertIn("browsers: OK", result.stdout)
+
+    def test_malware_preflight_prevents_global_install(self):
+        self.env["FAKE_MALWARE"] = "1"
+        result = self.run_update()
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertFalse(Path(self.env["FAKE_NPM_GLOBAL"]).exists())
+        self.assertIn("npm-and-codex: FAILED", result.stdout)
 
     def test_broken_uvx_does_not_replace_uv(self):
         with tarfile.open(self.uv, "w:gz") as archive:

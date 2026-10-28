@@ -28,16 +28,40 @@ run() {
 }
 
 update_npm() {
+  local tmp
+  local -a specs=()
   [[ -s "$NVM_DIR/nvm.sh" ]] || return 1
   # shellcheck disable=SC1090
   source "$NVM_DIR/nvm.sh"
   nvm use default >/dev/null || return 1
   # Preserve global packages when the current LTS line changes.
   npm_config_ignore_scripts=true nvm install --lts --reinstall-packages-from=current --no-progress || return 1
+  tmp="$(mktemp -d)" || return 1
+  # Resolve public dependencies in isolation, without executing their scripts.
+  if ! (cd "$tmp" && npm_config_userconfig="$tmp/user.npmrc" npm_config_globalconfig="$tmp/global.npmrc" \
+    npm_config_engine_strict=true npm install --package-lock-only --ignore-scripts --no-audit --no-fund \
+      --registry=https://registry.npmjs.org/ npm@latest @openai/codex@latest playwright@latest @playwright/cli@latest) ||
+     ! python3 /usr/local/bin/audit-npm-dependencies.py --lock "$tmp/package-lock.json"; then
+    rm -rf "$tmp"; return 1
+  fi
+  mapfile -t specs < <(python3 - "$tmp/package-lock.json" <<'PY'
+import json, sys
+packages = json.load(open(sys.argv[1]))["packages"]
+for name in ("npm", "@openai/codex", "playwright", "@playwright/cli"):
+    print(f"{name}@{packages['node_modules/' + name]['version']}")
+PY
+  )
+  if [[ ${#specs[@]} != 4 ]] ||
+     ! (cd "$tmp" && npm_config_userconfig="$tmp/user.npmrc" npm_config_globalconfig="$tmp/global.npmrc" \
+       npm_config_engine_strict=true npm install -g --ignore-scripts --no-audit --no-fund \
+         --registry=https://registry.npmjs.org/ "${specs[@]}") ||
+     ! python3 /usr/local/bin/patch-npm-bundled.py "$(npm root -g)" ||
+     ! npm ls -g --all --json > "$tmp/installed.json" ||
+     ! python3 /usr/local/bin/audit-npm-dependencies.py --tree "$tmp/installed.json" --allowed-lock "$tmp/package-lock.json"; then
+    rm -rf "$tmp"; return 1
+  fi
+  rm -rf "$tmp"
   nvm alias default 'lts/*' || return 1
-  nvm use default >/dev/null || return 1
-  npm_config_engine_strict=true npm install -g --ignore-scripts --no-audit --no-fund \
-    npm@latest @openai/codex@latest playwright@latest @playwright/cli@latest || return 1
   PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-/opt/ms-playwright}" playwright install chromium
 }
 
