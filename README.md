@@ -30,33 +30,26 @@ with its Codex/Claude reader skills. Common terminal utilities include `jq`, `sq
 The `codex-auto`, `claude-auto`, and `opencode-auto` shell aliases start each
 agent with its unattended flags for trusted workspaces.
 
-VS Code is intentionally not installed. The base image ships a VS Code tarball,
-but the build removes it because the desktop already provides gedit, VLC and a
-browser. This keeps the image smaller and the APT transactions shorter. The
-`code/add-microsoft-repo` debconf answer is still preseeded so installing VS Code
-later never blocks an upgrade.
+The build removes the VS Code tarball supplied by the base image to reduce image
+size and APT work. The `code/add-microsoft-repo` debconf answer is preseeded so a
+later VS Code installation does not block upgrades.
 
 ### Playwright
 
-`playwright-cli` reuses the Google Chrome shipped in the base image (headless by
-default) and disables the Chromium sandbox through the global
-`~/.playwright/cli.config.json`, so browser automation works without a browser
-download. In addition, the matching Playwright Chromium and headless shell are
-preinstalled under `/opt/ms-playwright` (`PLAYWRIGHT_BROWSERS_PATH`), so a plain
-`playwright` CLI or `@playwright/test` project can run without a first-run
-download.
+`playwright-cli` uses the installed Google Chrome in headless mode by default.
+Its global configuration at `~/.playwright/cli.config.json` disables the
+Chromium sandbox. Playwright's matching Chromium and headless shell are also
+preinstalled under `/opt/ms-playwright` (`PLAYWRIGHT_BROWSERS_PATH`).
 
 ## Non-interactive APT upgrades
 
-Builds update inherited packages with `apt-get upgrade --with-new-pkgs --no-remove`
-before installing additional tools. This includes security fixes for the Ubuntu
-userland and updates from configured third-party repositories (including Chrome).
-APT index failures stop the build instead of silently using stale metadata.
-Local configuration files are preserved. Exact APT versions depend on the
-repositories at build time; the Kasm tag alone does not make the image immutable.
+Before installing tools, the build runs `apt-get upgrade --with-new-pkgs --no-remove`
+for Ubuntu packages and configured third-party repositories, including Chrome.
+An APT index failure stops the build. Local configuration is preserved, and
+package versions depend on the repositories at build time. Pinning the base tag
+alone does not fix those versions.
 
-The image is preseeded so `sudo apt update && sudo apt upgrade` does not ask the
-debconf questions that a desktop container normally shows:
+The image preanswers the debconf questions that can block an APT upgrade:
 
 - `keyboard-configuration` is answered as a JIS 106/109 keyboard
   (`pc105` + `jp`), matching the XFCE/IBus session configuration.
@@ -74,26 +67,26 @@ Run `image-smoke-test` inside the container to verify these settings.
 
 ### October 2026 security refresh
 
-Reviewed on 2026-10-22 against upstream advisories and the installed packages in
-`kasmweb/ubuntu-noble-nvidia:1.19.0`:
+The October 2026 review covered upstream advisories and packages in
+`kasmweb/ubuntu-noble-nvidia:1.19.0`. The version checks below remain minimums;
+the update worker can install newer releases.
 
 | Component | Finding and action |
 | --- | --- |
 | KasmVNC | Install **1.5.2-1+yuki20261026**, built from [the reviewed fork commit](https://github.com/yuki-inaho/KasmVNC/commit/de183a9e9288a425979250b58943f03ab2e1cbed) with KSN-2026-006 (WebSocket handshake bounds), upstream #372, #362 and #369, and **X.Org 21.1.25**. The release URL and SHA-256 are pinned independently of the Kasm base image. |
 | Node.js | Update 22.23.2 to **22.23.4**, the [October security release](https://nodejs.org/en/blog/release/v22.23.4), including TLS, DNS, Brotli and bundled CA fixes. |
-| npm | Update 12.2.0 to **12.2.1**, the compatible [patch release](https://github.com/npm/cli/releases/tag/v12.2.1) with dependency updates. This is not described as a separate emergency advisory. |
+| npm | Update 12.2.0 to **12.2.1**, a compatible [patch release](https://github.com/npm/cli/releases/tag/v12.2.1) with dependency updates; no separate emergency advisory was identified. |
 | Ubuntu CA bundle | The base contains 20240203. Require **20260816ubuntu0.24.04.1** or later for [USN-8944-1](https://ubuntu.com/security/notices/USN-8944-1), which removes the distrusted emSign root. |
 | Ubuntu userland | Refresh inherited packages, including OpenSSL, curl, OpenSSH, xz and Chrome, rather than only installing extra development packages. |
 | Browsers | Require Chrome **156.0.8078.47** or later ([stable security release](https://chromereleases.googleblog.com/2026/10/stable-channel-update-for-desktop_02018666648.html)). Refresh the optional Chromium snapshot from revision 1684548 (154.0.8020.0) to **1724358 (158.0.8117.0)**, with a pinned SHA-256. Snapshots remain development builds, not stable security releases. |
 | PHP | No PHP packages or executable were found in the inspected base; this template does not install PHP. If a future base adds Ubuntu PHP 8.3, require **8.3.6-0ubuntu0.24.04.13** or later for [USN-8948-1](https://ubuntu.com/security/notices/USN-8948-1). |
 | Linux kernel | No kernel image package is installed here. Containers [share the host kernel](https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-container/). The host operator must apply the notice for its kernel flavour, for example [USN-8917-1](https://ubuntu.com/security/notices/USN-8917-1), and reboot where required. |
 
-`image-security-check` runs as part of both image smoke tests. It checks the
-reviewed minimum versions and absence of the distrusted root in both Ubuntu's
-and Node's CA bundles. It is a regression check, not a complete vulnerability
-scanner; application-specific certificate bundles and mounted user environments
-need their own updates. PHP installed after deployment also needs its own update.
-The host kernel and NVIDIA driver are outside the Docker image update boundary.
+Both image smoke tests run `image-security-check` to verify the minimum versions
+and the removal of the distrusted root from Ubuntu's and Node's CA bundles. This
+is a regression check, not a complete vulnerability scan. Application-specific
+certificate bundles, mounted environments and PHP installed after deployment
+need separate updates. The host operator manages the kernel and NVIDIA driver.
 
 Playwright **1.64.1** was the latest stable npm release at review time. Its
 [browser manifest](https://github.com/microsoft/playwright/blob/v1.64.1/packages/playwright-core/browsers.json)
@@ -105,9 +98,49 @@ Update Playwright and its bundled browsers when upstream ships a suitable releas
 
 ## Desktop defaults
 
+`~/Desktop/AI-SETUP.md` asks an AI agent to review and install skills, Harness²
+and agent-jsonl-compact. It covers untrusted instructions, configuration changes
+and credential exposure. The startup hook copies the file from
+`/usr/local/share/kasm-noble-ai-workspace/AI-SETUP.md` only when the desktop
+destination does not exist. It leaves existing files and symlinks alone.
+
 The top XFCE panel is configured with a Files (Nautilus) launcher and a digital
 clock on the right side. The clock shows `%Y-%m-%d` above `%H:%M:%S`, so seconds
 are always visible.
+
+## Tool and browser updates
+
+GitHub Actions rebuilds and tests both images daily before publishing them.
+Each container also runs an updater at startup and every 24 hours. It refreshes
+Node LTS, npm, Codex, Claude Code, OpenCode 2, Rust and cargo, uv, Herdr, agmsg,
+agent-jsonl-compact, Playwright and Chrome. The full image also updates its
+Chromium snapshot.
+
+New versions apply to new processes; restart an open shell to use a new Node
+version. Node LTS migration reinstalls global packages without npm lifecycle
+scripts, so user-added packages that need build scripts may require a manual
+rebuild. The updater does not restart the instance.
+
+Before installing npm, Codex and Playwright updates, the updater checks their
+public dependency names and versions against [OSV](https://osv.dev/). A known
+malware advisory or an unavailable OSV service stops that npm update. Other
+advisories are logged for review, and the installed tree is checked again.
+The updater also applies targeted fixes for two vulnerable libraries bundled
+with npm 12.2.1. These checks do not cover every tool or detect unknown malware,
+compromised maintainers or malicious releases without an advisory.
+
+`workspace-update-tools --once` runs the same updater on demand. Set
+`AUTO_UPDATE_TOOLS=0` to disable the background worker. Its log is
+`~/.local/state/kasm-workspace/tool-update.log`; failures are retried after one
+hour. The updater checks release asset hashes against GitHub metadata. For
+Chromium it checks the MD5 in Google's snapshot metadata and logs the SHA-256;
+neither check is an independent publisher signature. It retains old Chromium
+directories because running browsers may still need them.
+
+Updates depend on network access, upstream availability, supported platforms
+and passing tests. They are not instantaneous. Project-specific toolchain pins
+take precedence, and the updater does not change the host kernel or project
+virtual environments.
 
 ## Remote access (optional)
 
@@ -195,12 +228,10 @@ After the refreshed image is published, pull it and recreate containers to use
 it; a Git push or restarting an existing container does not replace its image.
 Back up any data stored outside persistent volumes before recreation.
 
-Tool versions are pinned in the `Dockerfile` (`NPM_VERSION`, `CODEX_VERSION`,
-`CLAUDE_VERSION`, `OPENCODE_VERSION`, `PLAYWRIGHT_VERSION`, `PLAYWRIGHT_CLI_VERSION`,
-`RTK_VERSION`, `AGMSG_VERSION`, `HERDR_VERSION`, `AGENT_JSONL_COMPACT_VERSION`).
-The weekly canary overrides the agent versions with `latest` to catch upstream
-breakage. Docker BuildKit cache mounts keep the npm downloads out of the image
-layers and speed up rebuilds.
+The initial installation uses Dockerfile version pins as a fallback; the later
+refresh stage upgrades the tools listed above. Other tools retain their pins.
+The weekly canary also tests rolling base-image and agent versions. Docker
+BuildKit cache mounts speed up rebuilds.
 
 ## Connection
 
@@ -220,11 +251,8 @@ The build passed four AddressSanitizer/LeakSanitizer regressions (workflow run
 client is taken from the checksum-verified official 1.5.0 package; the server is
 built from the pinned fork commit.
 
-The image CI checks installed versions, the existing standard runtime path
-(HTTPS Basic authentication, WebSocket, and two simultaneous viewers), and
-builds/smoke/security for standard and full. A four-configuration connection E2E
-is out of scope for this change. These checks do not substitute for Japanese IME
-interaction or NVIDIA hardware acceptance on a GPU host.
-
-Existing Vast.ai instances need an image pull and container recreation to use
-the updated image. Building or publishing an image does not update running instances.
+CI checks installed versions, HTTPS authentication, WebSocket connections and
+two simultaneous viewers on the standard image. It also runs build, smoke and
+security checks on both variants. It does not test all four connection
+configurations. Japanese IME interaction and NVIDIA hardware acceptance still
+require testing on a GPU host.

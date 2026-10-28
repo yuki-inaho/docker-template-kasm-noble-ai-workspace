@@ -28,8 +28,8 @@ ARG PIXI_VERSION=0.77.1
 ARG PIXI_SHA256=5115a89a9189a2e4e7e8d2f04236a7be586d8f6091dfc9ea869fb3c4a52b6935
 ARG HERDR_VERSION=v0.9.5
 ARG HERDR_SHA256=14d9e8bc8b4a9e0118d77c32266f76d461f09b40342eb23752960bd89f59929d
-ARG AGENT_JSONL_COMPACT_VERSION=v0.2.0
-ARG AGENT_JSONL_COMPACT_SHA256=6b40ca9b8cc354cb3cc5cc3bf868fb1857981f61d20c625d9f5c8bd472aedf8b
+ARG AGENT_JSONL_COMPACT_VERSION=v0.5.1
+ARG AGENT_JSONL_COMPACT_SHA256=769460cc12ebabae2d2e7d43bd7992ab41e9c12dd12778145825c91ecf462c69
 ARG AGMSG_VERSION=v1.5.3
 ARG AWSCLI_VERSION=2.38.3
 ARG CLOUDFLARED_VERSION=2026.9.1
@@ -178,6 +178,20 @@ RUN set -x && /opt/image-build/configure-default-profile.sh
 
 USER root
 
+# The runtime initializer copies this to the desktop when no user file exists.
+COPY assets/AI-SETUP.md /usr/local/share/kasm-noble-ai-workspace/AI-SETUP.md
+COPY --chmod=0755 scripts/workspace-update-tools.sh /usr/local/bin/workspace-update-tools
+COPY --chmod=0755 scripts/update-system-browsers.sh /usr/local/bin/update-system-browsers
+COPY --chmod=0755 scripts/audit-npm-dependencies.py /usr/local/bin/audit-npm-dependencies.py
+COPY --chmod=0755 scripts/patch-npm-bundled.py /usr/local/bin/patch-npm-bundled.py
+
+# Resolve current upstream releases at build time; the run id invalidates this
+# layer for each scheduled publish without rebuilding stable earlier layers.
+ARG TOOL_UPDATE_REFRESH=2026-10-28
+USER 1000
+RUN echo "Tool refresh: ${TOOL_UPDATE_REFRESH}" && /usr/local/bin/workspace-update-tools --once
+USER root
+
 # Reviewed KasmVNC fork package; independently pinned from the Kasm base tag.
 ARG KASMVNC_PACKAGE_VERSION=1.5.2-1+yuki20261026
 ARG KASMVNC_DEB_URL=https://github.com/yuki-inaho/KasmVNC/releases/download/v1.5.2-noble-de183a9e9288/kasmvncserver_noble_amd64.deb
@@ -265,9 +279,11 @@ USER root
 COPY --chmod=0755 scripts/install-chromium.sh /tmp/install-chromium.sh
 
 RUN set -x && \
+    export HOME=/root XDG_CONFIG_HOME=/root/.config XDG_CACHE_HOME=/root/.cache XDG_DATA_HOME=/root/.local/share && \
     CHROMIUM_REVISION="${CHROMIUM_REVISION}" \
     CHROMIUM_SHA256="${CHROMIUM_SHA256}" /tmp/install-chromium.sh && \
-    rm -f /tmp/install-chromium.sh
+    rm -f /tmp/install-chromium.sh && \
+    /usr/local/bin/update-system-browsers
 
 ENV IMAGE_VARIANT=full \
     CHROMIUM_NO_SANDBOX=1
