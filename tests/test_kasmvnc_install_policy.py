@@ -16,7 +16,7 @@ import tempfile
 import textwrap
 import unittest
 
-TARGET = "1.5.2-1+yuki20261026"
+TARGET = "1.5.2+git20261028-1"
 APPROVED_URL = (
     "https://github.com/yuki-inaho/KasmVNC/releases/download/"
     "v1.5.2-noble-test/kasmvncserver_noble_amd64.deb"
@@ -80,7 +80,7 @@ class InstallerPolicyTest(unittest.TestCase):
             case "$3" in
               Package) printf '%s\\n' "${FAKE_PACKAGE:-kasmvncserver}" ;;
               Architecture) printf '%s\\n' "${FAKE_ARCH:-amd64}" ;;
-              Version) printf '%s\\n' "${FAKE_VERSION:-1.5.2-1+yuki20261026}" ;;
+              Version) printf '%s\\n' "${FAKE_VERSION:-1.5.2+git20261028-1}" ;;
               *) exit 1 ;;
             esac
             """,
@@ -103,7 +103,7 @@ class InstallerPolicyTest(unittest.TestCase):
             #!/usr/bin/env bash
             set -euo pipefail
             if [[ -e "$FAKE_APT_STATE" ]]; then
-              printf '%s\\n' "${FAKE_AFTER:-${FAKE_VERSION:-1.5.2-1+yuki20261026}}"
+              printf '%s\\n' "${FAKE_AFTER:-${FAKE_VERSION:-1.5.2+git20261028-1}}"
             elif [[ -n "${FAKE_BEFORE:-}" ]]; then
               printf '%s\\n' "$FAKE_BEFORE"
             else
@@ -199,7 +199,7 @@ class InstallerPolicyTest(unittest.TestCase):
                 self.assert_rejected_before_install(result)
 
     def test_same_or_older_installed_version(self) -> None:
-        for before in ("1.3.4-1", TARGET):
+        for before in ("1.3.4-1", "1.5.2-1+yuki20261026", TARGET):
             with self.subTest(before=before):
                 self.reset_run_state()
                 result = self.run_installer(FAKE_BEFORE=before)
@@ -238,7 +238,7 @@ class InstallerPolicyTest(unittest.TestCase):
                 )
 
     @unittest.skip(
-        "No limited downgrade is designed: the adopted 1.5.2 artifact is newer than the 1.5.1 base."
+        "No limited downgrade is designed: the integrated package is newer than the prior fork package."
     )
     def test_scoped_downgrade_only_if_reviewed(self) -> None:
         self.fail("limited downgrade is intentionally not implemented")
