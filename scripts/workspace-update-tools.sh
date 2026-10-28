@@ -38,7 +38,7 @@ update_npm() {
   npm_config_ignore_scripts=true nvm install --lts --reinstall-packages-from=current --no-progress || return 1
   tmp="$(mktemp -d)" || return 1
   # Resolve public dependencies in isolation, without executing their scripts.
-  if ! (cd "$tmp" && npm_config_userconfig="$tmp/user.npmrc" npm_config_globalconfig="$tmp/global.npmrc" \
+  if ! (cd "$tmp" && npm_config_userconfig="$tmp/user.npmrc" npm_config_globalconfig="$tmp/global.npmrc" npm_config_allow_remote=all \
     npm_config_engine_strict=true npm install --package-lock-only --ignore-scripts --no-audit --no-fund \
       --registry=https://registry.npmjs.org/ npm@latest @openai/codex@latest playwright@latest @playwright/cli@latest) ||
      ! python3 /usr/local/bin/audit-npm-dependencies.py --lock "$tmp/package-lock.json"; then
@@ -52,7 +52,7 @@ for name in ("npm", "@openai/codex", "playwright", "@playwright/cli"):
 PY
   )
   if [[ ${#specs[@]} != 4 ]] ||
-     ! (cd "$tmp" && npm_config_userconfig="$tmp/user.npmrc" npm_config_globalconfig="$tmp/global.npmrc" \
+     ! (cd "$tmp" && npm_config_userconfig="$tmp/user.npmrc" npm_config_globalconfig="$tmp/global.npmrc" npm_config_allow_remote=all \
        npm_config_engine_strict=true npm install -g --ignore-scripts --no-audit --no-fund \
          --registry=https://registry.npmjs.org/ "${specs[@]}") ||
      ! python3 /usr/local/bin/patch-npm-bundled.py "$(npm root -g)" ||

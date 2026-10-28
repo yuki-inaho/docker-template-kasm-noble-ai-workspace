@@ -109,6 +109,9 @@ jobs:
       - name: Verify HTTPS authentication and two browser viewers
         run: bash scripts/test-kasmvnc-runtime.sh local/kasm-runtime:test
 
+      - name: Verify startup updater on an already updated image
+        run: bash scripts/test-tool-update-runtime.sh local/kasm-runtime:test
+
       - name: Test tool update failure handling
         run: |
           docker run --rm --network none --user 1000 \
