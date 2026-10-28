@@ -105,9 +105,41 @@ Update Playwright and its bundled browsers when upstream ships a suitable releas
 
 ## Desktop defaults
 
+`~/Desktop/AI-SETUP.md` is a prompt for an AI agent to inspect and install
+the user's skills, Harness² and agent-jsonl-compact repositories. It includes
+checks for untrusted instruction files, configuration changes and credential
+exfiltration. The startup hook creates it only if the destination is absent;
+an existing user file or symlink is never replaced. The source is
+`/usr/local/share/kasm-noble-ai-workspace/AI-SETUP.md`.
+
 The top XFCE panel is configured with a Files (Nautilus) launcher and a digital
 clock on the right side. The clock shows `%Y-%m-%d` above `%H:%M:%S`, so seconds
 are always visible.
+
+## Tool and browser updates
+
+Published images resolve current releases during the build, then run the image
+and browser tests before publishing. A daily GitHub Actions schedule rebuilds
+the standard and full variants. Containers created from this image also run an
+update worker at startup and every 24 hours: it updates Node LTS and npm, Codex, Claude Code,
+OpenCode 2, Rust stable (including cargo), uv, Herdr, agmsg, agent-jsonl-compact,
+Playwright and Chrome. The full variant also refreshes its Chromium snapshot.
+Version changes take effect in newly started processes; open shells may need to
+be restarted for a new Node version. Node LTS migration reinstalls existing global
+packages without npm lifecycle scripts; user-added packages requiring build
+scripts may need manual rebuilding. The worker does not restart the instance.
+
+`workspace-update-tools --once` runs the same updater on demand. Set
+`AUTO_UPDATE_TOOLS=0` to disable the background worker. Its log is
+`~/.local/state/kasm-workspace/tool-update.log`; failures are retried after one
+hour. Release asset hashes are checked against GitHub metadata. Chromium uses
+the official snapshot storage metadata's MD5 for transfer integrity, with its
+SHA-256 logged; these checks are not independent publisher signatures. Old
+Chromium directories remain on disk while running browsers may still use them.
+Automatic refresh depends on working networks, upstream availability, supported
+platforms and successful tests, so a release is not guaranteed to appear
+instantaneously. Project-specific toolchain pins continue to take precedence;
+the worker does not update the host kernel or arbitrary project venvs.
 
 ## Remote access (optional)
 
@@ -195,12 +227,10 @@ After the refreshed image is published, pull it and recreate containers to use
 it; a Git push or restarting an existing container does not replace its image.
 Back up any data stored outside persistent volumes before recreation.
 
-Tool versions are pinned in the `Dockerfile` (`NPM_VERSION`, `CODEX_VERSION`,
-`CLAUDE_VERSION`, `OPENCODE_VERSION`, `PLAYWRIGHT_VERSION`, `PLAYWRIGHT_CLI_VERSION`,
-`RTK_VERSION`, `AGMSG_VERSION`, `HERDR_VERSION`, `AGENT_JSONL_COMPACT_VERSION`).
-The weekly canary overrides the agent versions with `latest` to catch upstream
-breakage. Docker BuildKit cache mounts keep the npm downloads out of the image
-layers and speed up rebuilds.
+The initial installation uses Dockerfile version pins as a fallback; the later
+refresh stage upgrades the tools listed above. Other tools retain their pins.
+The weekly canary also tests rolling base-image and agent versions. Docker
+BuildKit cache mounts speed up rebuilds.
 
 ## Connection
 

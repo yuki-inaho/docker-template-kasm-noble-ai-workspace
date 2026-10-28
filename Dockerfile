@@ -178,6 +178,18 @@ RUN set -x && /opt/image-build/configure-default-profile.sh
 
 USER root
 
+# The runtime initializer copies this to the desktop when no user file exists.
+COPY assets/AI-SETUP.md /usr/local/share/kasm-noble-ai-workspace/AI-SETUP.md
+COPY --chmod=0755 scripts/workspace-update-tools.sh /usr/local/bin/workspace-update-tools
+COPY --chmod=0755 scripts/update-system-browsers.sh /usr/local/bin/update-system-browsers
+
+# Resolve current upstream releases at build time; the run id invalidates this
+# layer for each scheduled publish without rebuilding stable earlier layers.
+ARG TOOL_UPDATE_REFRESH=2026-10-28
+USER 1000
+RUN echo "Tool refresh: ${TOOL_UPDATE_REFRESH}" && /usr/local/bin/workspace-update-tools --once
+USER root
+
 # Reviewed KasmVNC fork package; independently pinned from the Kasm base tag.
 ARG KASMVNC_PACKAGE_VERSION=1.5.2-1+yuki20261026
 ARG KASMVNC_DEB_URL=https://github.com/yuki-inaho/KasmVNC/releases/download/v1.5.2-noble-de183a9e9288/kasmvncserver_noble_amd64.deb
@@ -265,9 +277,11 @@ USER root
 COPY --chmod=0755 scripts/install-chromium.sh /tmp/install-chromium.sh
 
 RUN set -x && \
+    export HOME=/root XDG_CONFIG_HOME=/root/.config XDG_CACHE_HOME=/root/.cache XDG_DATA_HOME=/root/.local/share && \
     CHROMIUM_REVISION="${CHROMIUM_REVISION}" \
     CHROMIUM_SHA256="${CHROMIUM_SHA256}" /tmp/install-chromium.sh && \
-    rm -f /tmp/install-chromium.sh
+    rm -f /tmp/install-chromium.sh && \
+    /usr/local/bin/update-system-browsers
 
 ENV IMAGE_VARIANT=full \
     CHROMIUM_NO_SANDBOX=1

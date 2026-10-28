@@ -25,6 +25,10 @@ configure_workspace() {
   fi
 
   mkdir -p "${HOME}/Desktop"
+  if [[ ! -e "${HOME}/Desktop/AI-SETUP.md" && ! -L "${HOME}/Desktop/AI-SETUP.md" ]]; then
+    install -m 0644 /usr/local/share/kasm-noble-ai-workspace/AI-SETUP.md "${HOME}/Desktop/AI-SETUP.md" || \
+      log "Could not install the AI setup instructions"
+  fi
   if [[ -e "${HOME}/Desktop/workspace" && ! -L "${HOME}/Desktop/workspace" ]]; then
     log "Desktop/workspace already exists and is not a symlink; leaving it unchanged"
   else
@@ -112,6 +116,9 @@ main() {
   configure_japanese_input
   configure_remote_access
   configure_file_manager
+  if [[ "${AUTO_UPDATE_TOOLS:-1}" == 1 ]] && [[ -x /usr/local/bin/workspace-update-tools ]]; then
+    nohup /usr/local/bin/workspace-update-tools --watch >/dev/null 2>&1 &
+  fi
   log "Runtime settings complete"
 }
 
