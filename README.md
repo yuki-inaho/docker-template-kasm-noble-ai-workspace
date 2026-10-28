@@ -236,7 +236,8 @@ Back up any data stored outside persistent volumes before recreation.
 The initial installation uses Dockerfile version pins as a fallback; the later
 refresh stage upgrades the tools listed above. Other tools retain their pins.
 The weekly canary also tests rolling base-image and agent versions. Docker
-BuildKit cache mounts speed up rebuilds.
+BuildKit cache mounts speed up rebuilds. GitHub Actions are pinned to reviewed
+commit IDs; update those pins through a reviewed change.
 
 ## Connection
 

@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Free runner disk space
         run: |
@@ -38,7 +38,7 @@ jobs:
 
       - name: Set up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
       - name: Check Docker Hub token
         env:
@@ -50,7 +50,7 @@ jobs:
           fi
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v4
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4
         with:
           username: yukiinaho
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -62,7 +62,7 @@ jobs:
 
       - name: Generate standard image metadata
         id: meta-standard
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
           images: ${{ steps.image.outputs.name }}
           tags: |
@@ -72,7 +72,7 @@ jobs:
 
       - name: Generate full image metadata
         id: meta-full
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
           images: ${{ steps.image.outputs.name }}
           tags: |
@@ -81,7 +81,7 @@ jobs:
             type=sha,prefix=full-sha-
 
       - name: Test standard image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -122,14 +122,14 @@ jobs:
             -m unittest discover -s tests -p 'test_tool*.py' -v
 
       - name: Save runtime screenshots
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: kasmvnc-runtime
           path: runtime-evidence/
           if-no-files-found: error
 
       - name: Test full image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -153,7 +153,7 @@ jobs:
             PLAYWRIGHT_CLI_VERSION=0.1.22
 
       - name: Build and push standard image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
@@ -179,7 +179,7 @@ jobs:
             PLAYWRIGHT_CLI_VERSION=0.1.22
 
       - name: Build and push full image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
