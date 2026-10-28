@@ -1,4 +1,6 @@
 const { chromium } = require('playwright');
+const { spawn } = require('node:child_process');
+const fs = require('node:fs');
 (async () => {
   const browser = await chromium.launch({
     executablePath: '/usr/bin/google-chrome',
@@ -31,6 +33,33 @@ const { chromium } = require('playwright');
       if (!socketOpened) throw new Error('No WebSocket observed');
       await page.screenshot({ path: '/tmp/kasm-viewer-' + viewer + '.png' });
       console.log('PASS: viewer ' + (viewer + 1) + ' authenticated, WebSocket opened and desktop pixels received');
+    }
+    // Exercise browser-to-X11 keyboard input in an isolated terminal.
+    const inputFile = '/tmp/kasm-keyboard-input';
+    try { fs.unlinkSync(inputFile); } catch (err) { if (err.code !== 'ENOENT') throw err; }
+    const terminal = spawn('xterm', ['-geometry', '80x20+20+20', '-e', 'bash', '-c', `cat > ${inputFile}`], {
+      env: { ...process.env, DISPLAY: ':1' }, stdio: 'ignore',
+    });
+    try {
+      const page = contexts[0].pages()[0];
+      await page.waitForTimeout(2000);
+      await page.locator('#noVNC_container canvas').first().click({ position: { x: 180, y: 150 } });
+      await page.keyboard.type('kasm-keyboard-check');
+      await page.keyboard.press('Enter');
+      let received = false;
+      for (let attempt = 0; attempt < 20; attempt++) {
+        if (fs.existsSync(inputFile) && fs.readFileSync(inputFile, 'utf8').split(/\r?\n/).includes('kasm-keyboard-check')) {
+          received = true;
+          break;
+        }
+        await page.waitForTimeout(250);
+      }
+      if (!received) {
+        throw new Error('Browser keyboard input did not reach the X11 terminal');
+      }
+      console.log('PASS: browser keyboard input reached the X11 terminal');
+    } finally {
+      terminal.kill();
     }
     await Promise.all(contexts.map(context => context.close()));
   } finally {

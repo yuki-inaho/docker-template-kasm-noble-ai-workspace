@@ -193,16 +193,16 @@ RUN echo "Tool refresh: ${TOOL_UPDATE_REFRESH}" && /usr/local/bin/workspace-upda
 USER root
 
 # Reviewed KasmVNC fork package; independently pinned from the Kasm base tag.
-ARG KASMVNC_PACKAGE_VERSION=1.5.2-1+yuki20261026
-ARG KASMVNC_DEB_URL=https://github.com/yuki-inaho/KasmVNC/releases/download/v1.5.2-noble-de183a9e9288/kasmvncserver_noble_amd64.deb
-ARG KASMVNC_DEB_SHA256=e2342f4ded628d20850067658f89bd41cd52b26037d92df07b12b1145c987543
+ARG KASMVNC_PACKAGE_VERSION=1.5.2+git20261028-1
+ARG KASMVNC_DEB_URL=https://github.com/yuki-inaho/KasmVNC/releases/download/v1.5.2-noble-master-ae591980874c/kasmvncserver_noble_amd64.deb
+ARG KASMVNC_DEB_SHA256=4fe401a69162f3d8c10fda3f0bebef3608139ea59b8b23cc032187514162d053
 COPY --chmod=0755 scripts/install-kasmvnc.sh /opt/image-build/install-kasmvnc.sh
 RUN KASMVNC_PACKAGE_VERSION="${KASMVNC_PACKAGE_VERSION}" \
     KASMVNC_DEB_URL="${KASMVNC_DEB_URL}" \
     KASMVNC_DEB_SHA256="${KASMVNC_DEB_SHA256}" \
     /opt/image-build/install-kasmvnc.sh
 
-LABEL org.opencontainers.image.kasmvnc.revision="de183a9e9288a425979250b58943f03ab2e1cbed"
+LABEL org.opencontainers.image.kasmvnc.revision="ae591980874c6777c24c59ba4d508c5251b59e7e"
 
 # ---------------------------------------------------------------------------
 # Stage 8: startup hooks and runtime wiring
