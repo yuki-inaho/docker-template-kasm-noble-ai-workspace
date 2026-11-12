@@ -28,14 +28,14 @@ fi
 
 cat > "${ibus_db_dir}/90-kasm-hotkeys" <<'SETTINGS'
 [desktop/ibus/general/hotkey]
-trigger=['Control+space']
-triggers=['<Control>space', '<Super>space']
+trigger=['Control+space', 'Zenkaku_Hankaku']
+triggers=['<Control>space', '<Super>space', 'Zenkaku_Hankaku']
 SETTINGS
 
-# Persistent Kasm homes may already contain the upstream Zenkaku_Hankaku or
-# Alt+grave shortcuts. Lock only the on/off trigger keys so those stale user
-# values cannot restore the observed keycode-49 conflict; engine ordering
-# remains editable.
+# Keep Zenkaku_Hankaku because the JIS keyboard operator relies on it for
+# English/Japanese switching. Exclude Alt+grave, which caused the old
+# keycode-49 conflict. Lock only the on/off trigger keys so stale user values
+# cannot restore Alt+grave; engine ordering remains editable.
 cat > "${ibus_lock_dir}/90-kasm-hotkeys" <<'LOCKS'
 /desktop/ibus/general/hotkey/trigger
 /desktop/ibus/general/hotkey/triggers

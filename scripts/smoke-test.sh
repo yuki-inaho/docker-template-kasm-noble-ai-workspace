@@ -56,23 +56,22 @@ check_ibus_hotkeys() {
   trigger_writable="$(DCONF_PROFILE=ibus gsettings writable "${schema}" trigger 2>/dev/null || true)"
   triggers_writable="$(DCONF_PROFILE=ibus gsettings writable "${schema}" triggers 2>/dev/null || true)"
 
-  if [[ "${trigger}" == "['Control+space']" ]]; then
-    pass "IBus legacy trigger is limited to Control+space"
+  if [[ "${trigger}" == "['Control+space', 'Zenkaku_Hankaku']" ]]; then
+    pass "IBus trigger keeps Control+space and Zenkaku_Hankaku"
   else
     fail "unexpected IBus trigger value: ${trigger:-<empty>}"
   fi
 
-  if [[ "${triggers}" == "['<Control>space', '<Super>space']" ]]; then
-    pass "IBus GTK triggers use Control+space and Super+space"
+  if [[ "${triggers}" == "['<Control>space', '<Super>space', 'Zenkaku_Hankaku']" ]]; then
+    pass "IBus GTK triggers keep Control+space, Super+space and Zenkaku_Hankaku"
   else
     fail "unexpected IBus triggers value: ${triggers:-<empty>}"
   fi
 
-  if [[ "${trigger}${triggers}" == *Zenkaku_Hankaku* || \
-     "${trigger}${triggers}" == *Alt+grave* ]]; then
-    fail "IBus triggers still contain a keycode-49 conflict"
+  if [[ "${trigger}${triggers}" == *Alt+grave* ]]; then
+    fail "IBus triggers still contain the Alt+grave keycode-49 conflict"
   else
-    pass "IBus triggers exclude Zenkaku_Hankaku and Alt+grave"
+    pass "IBus triggers exclude Alt+grave (Zenkaku_Hankaku is allowed)"
   fi
 
   if [[ "${trigger_writable}" == "false" && "${triggers_writable}" == "false" ]]; then
