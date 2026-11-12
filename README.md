@@ -249,6 +249,26 @@ By default, the VNC service uses TLS for direct TCP connections. When an HTTPS
 reverse proxy terminates TLS before forwarding to port `6901`, set
 `KASMVNC_REQUIRE_SSL=false` and expose `6901` as an HTTP service.
 
+### Vast.ai SSH-only template (SSH tunnel)
+
+The private SSH-only Vast.ai template publishes only SSH. KasmVNC listens on
+`127.0.0.1:6901` inside the container, so the Vast.ai Open button and a direct
+public URL cannot reach it. Use an SSH local forward:
+
+```bash
+ssh -N -p <SSH_HOST_PORT> -i ~/.ssh/id_ed25519 \
+  -L 6901:localhost:6901 kasm-user@<PUBLIC_IP>
+```
+
+Then open `https://localhost:6901` and sign in as `kasm_user` with the
+template's `VNC_PW`. The certificate is self-signed; proceed only after
+verifying the SSH host key on first use.
+
+Run the tunnel on the same machine as the browser. If local port 6901 is already
+in use, forward a different port, for example
+`-L 16901:localhost:6901`, and open `https://localhost:16901`. The SSH user is
+`kasm-user` (hyphen); the KasmVNC web login is `kasm_user` (underscore).
+
 ## KasmVNC fork validation
 
 The [Noble integration package](https://github.com/yuki-inaho/KasmVNC/releases/tag/v1.5.2-noble-master-ae591980874c)
