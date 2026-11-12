@@ -18,7 +18,10 @@ home_repair_log() {
 home_repair_run_sudo() {
   if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
     sudo -n "$@"
+  elif [[ "$(id -u)" -eq 0 ]]; then
+    "$@"
   else
+    home_repair_log "sudo -n is unavailable; running without privilege escalation: $*"
     "$@"
   fi
 }

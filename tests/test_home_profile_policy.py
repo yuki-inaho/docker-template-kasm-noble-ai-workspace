@@ -104,6 +104,11 @@ class HomeRepairTest(unittest.TestCase):
         self.assertIn("KASM_HOME_REPAIR_FORCE", text)
         self.assertIn('if [[ "${KASM_HOME_REPAIR}" != "1" ]]', text)
 
+    def test_sudo_fallback_is_logged(self) -> None:
+        text = HOME_REPAIR.read_text(encoding="utf-8")
+        self.assertIn("sudo -n is unavailable", text)
+        self.assertIn('[[ "$(id -u)" -eq 0 ]]', text)
+
     def test_auto_tmux_is_disabled_for_herdr(self) -> None:
         text = HOME_REPAIR.read_text(encoding="utf-8")
         self.assertIn(".no_auto_tmux", text)
