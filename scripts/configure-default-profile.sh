@@ -33,7 +33,10 @@ configure_profile() {
 # >>> kasm-noble-ai-workspace-profile
 # Login shells read ~/.profile instead of ~/.bashrc. Keep the user tool
 # directories in PATH and load the interactive settings when bash is available.
-export PATH="$HOME/.opencode/bin:$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+case ":$PATH:" in
+  *":$HOME/.opencode/bin:"*) ;;
+  *) export PATH="$HOME/.opencode/bin:$HOME/.local/bin:$HOME/.cargo/bin:$PATH" ;;
+esac
 if [ -n "${BASH_VERSION:-}" ] && [ -f "$HOME/.bashrc" ]; then
   . "$HOME/.bashrc"
 fi

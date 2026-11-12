@@ -211,10 +211,11 @@ LABEL org.opencontainers.image.kasmvnc.revision="ae591980874c6777c24c59ba4d508c5
 # our one-time runtime initialization. The original script must remain alive or
 # Kasm will restart it continuously.
 # ---------------------------------------------------------------------------
-COPY --chmod=0755 scripts/runtime-init.sh scripts/custom-startup.sh scripts/smoke-test.sh scripts/security-check.sh scripts/vnc-startup.sh /opt/image-build/
+COPY --chmod=0755 scripts/runtime-init.sh scripts/home-repair.sh scripts/custom-startup.sh scripts/smoke-test.sh scripts/security-check.sh scripts/vnc-startup.sh /opt/image-build/
 
 RUN set -x && \
     install -m 0755 /opt/image-build/runtime-init.sh /dockerstartup/runtime-init.sh && \
+    install -m 0755 /opt/image-build/home-repair.sh /usr/local/bin/kasm-home-repair && \
     install -m 0755 /dockerstartup/vnc_startup.sh /dockerstartup/vnc_startup.ssl.sh && \
     sed 's/[[:space:]]-sslOnly//g' /dockerstartup/vnc_startup.ssl.sh > /dockerstartup/vnc_startup.http.sh && \
     chmod 0755 /dockerstartup/vnc_startup.http.sh && \
