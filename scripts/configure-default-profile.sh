@@ -7,6 +7,7 @@ if [[ "$(id -u)" -eq 0 ]]; then
 fi
 
 BASHRC="${HOME}/.bashrc"
+PROFILE="${HOME}/.profile"
 SESSIONRC="${HOME}/.xsessionrc"
 AUTOSTART_DIR="${HOME}/.config/autostart"
 XFCE_DIR="${HOME}/.config/xfce4"
@@ -25,12 +26,36 @@ replace_block() {
   mv "${tmp}" "${file}"
 }
 
+configure_profile() {
+  local block
+  block="$(mktemp)"
+  cat > "${block}" <<'BLOCK'
+# >>> kasm-noble-ai-workspace-profile
+# Login shells read ~/.profile instead of ~/.bashrc. Keep the user tool
+# directories in PATH and load the interactive settings when bash is available.
+export PATH="$HOME/.opencode/bin:$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+if [ -n "${BASH_VERSION:-}" ] && [ -f "$HOME/.bashrc" ]; then
+  . "$HOME/.bashrc"
+fi
+# <<< kasm-noble-ai-workspace-profile
+BLOCK
+
+  replace_block "${PROFILE}" \
+    '# >>> kasm-noble-ai-workspace-profile' \
+    '# <<< kasm-noble-ai-workspace-profile' \
+    "${block}"
+  rm -f "${block}"
+}
+
 configure_bashrc() {
   local block
   block="$(mktemp)"
   cat > "${block}" <<'BLOCK'
 # >>> kasm-noble-ai-workspace
-export PATH="$HOME/.opencode/bin:$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+case ":$PATH:" in
+  *":$HOME/.opencode/bin:"*) ;;
+  *) export PATH="$HOME/.opencode/bin:$HOME/.local/bin:$HOME/.cargo/bin:$PATH" ;;
+esac
 export XDG_CONFIG_HOME="$HOME/.config"
 export XDG_CACHE_HOME="$HOME/.cache"
 export XDG_DATA_HOME="$HOME/.local/share"
@@ -236,6 +261,7 @@ PANEL_PY
 
 main() {
   mkdir -p "${HOME}/Desktop"
+  configure_profile
   configure_bashrc
   configure_xsession
   configure_ibus_autostart
