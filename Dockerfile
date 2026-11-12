@@ -234,6 +234,7 @@ RUN set -x && \
     install -m 0755 /opt/image-build/security-check.sh /usr/local/bin/image-security-check && \
     install -d -m 2775 -o 1000 -g 0 /workspace && \
     install -d -m 0755 -o 1000 -g 0 /home/kasm-user && \
+    usermod -s /bin/bash kasm-user && \
     rm -rf /opt/image-build
 
 ENV HOME=/home/kasm-user \

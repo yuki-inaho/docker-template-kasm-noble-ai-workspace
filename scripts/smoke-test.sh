@@ -165,6 +165,43 @@ check_apt_noninteractive() {
   fi
 }
 
+check_home_profile() {
+  local profile="${HOME}/.profile"
+
+  if [[ ! -f "${profile}" ]]; then
+    fail "~/.profile is missing"
+    return
+  fi
+
+  if grep -Fq 'export PATH="$HOME/.opencode/bin:$HOME/.local/bin:$HOME/.cargo/bin:$PATH"' "${profile}"; then
+    pass "~/.profile adds the user tool directories to PATH"
+  else
+    fail "~/.profile does not add the user tool directories to PATH"
+  fi
+
+  if grep -Fq '. "$HOME/.bashrc"' "${profile}"; then
+    pass "~/.profile loads ~/.bashrc for bash login shells"
+  else
+    fail "~/.profile does not load ~/.bashrc"
+  fi
+}
+
+check_no_embedded_secrets() {
+  local pattern='(^|[^A-Za-z0-9])(sk-|hf_|ntn_|dckr_pat_|xai-)[A-Za-z0-9_-]{16,}'
+  local file
+  local found=0
+
+  for file in "${HOME}/.bashrc" "${HOME}/.profile"; do
+    if [[ -f "${file}" ]] && grep -Eq "${pattern}" "${file}"; then
+      fail "possible credential in ${file}"
+      found=1
+    fi
+  done
+  if (( found == 0 )); then
+    pass "no credential-like strings in ~/.bashrc and ~/.profile"
+  fi
+}
+
 check_remote_access() {
   if dpkg-query -W -f='${db:Status-Status}' openssh-server 2>/dev/null | grep -qx installed; then
     pass "openssh-server is installed"
@@ -284,6 +321,8 @@ check_command vlc vlc --version
 check_command google-chrome bash -lc 'google-chrome --version 2>/dev/null'
 check_ibus_hotkeys
 check_japanese_keyboard_profile
+check_home_profile
+check_no_embedded_secrets
 
 if grep -q 'agent-jsonl-compact sessions' "${HOME}/.codex/skills/agent-jsonl-compact-reader/SKILL.md" && \
    grep -q 'agent-jsonl-compact sessions' "${HOME}/.claude/skills/agent-jsonl-compact-reader/SKILL.md"; then

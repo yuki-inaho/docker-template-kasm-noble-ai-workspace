@@ -88,6 +88,9 @@ jobs:
       - name: Verify startup updater on an already updated image
         run: bash scripts/test-tool-update-runtime.sh local/kasm-runtime:test
 
+      - name: Verify kasm-user home repair and bash login
+        run: bash scripts/test-home-profile-runtime.sh local/kasm-runtime:test
+
       - name: Test full image without publishing
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
