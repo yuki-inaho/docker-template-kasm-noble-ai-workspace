@@ -104,6 +104,11 @@ class HomeRepairTest(unittest.TestCase):
         self.assertIn("KASM_HOME_REPAIR_FORCE", text)
         self.assertIn('if [[ "${KASM_HOME_REPAIR}" != "1" ]]', text)
 
+    def test_auto_tmux_is_disabled_for_herdr(self) -> None:
+        text = HOME_REPAIR.read_text(encoding="utf-8")
+        self.assertIn(".no_auto_tmux", text)
+        self.assertIn("KASM_AUTO_TMUX", text)
+
     def test_path_export_is_idempotent(self) -> None:
         body = function_body(HOME_REPAIR, "configure_home_profile")
         self.assertIn('case ":$PATH:" in', body)

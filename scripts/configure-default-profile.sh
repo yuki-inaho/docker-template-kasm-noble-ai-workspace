@@ -264,6 +264,8 @@ PANEL_PY
 
 main() {
   mkdir -p "${HOME}/Desktop"
+  # Vast's .bashrc auto-starts tmux; herdr runs better without a nested tmux.
+  touch "${HOME}/.no_auto_tmux"
   configure_profile
   configure_bashrc
   configure_xsession
