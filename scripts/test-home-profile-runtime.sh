@@ -53,6 +53,7 @@ assert_repaired() {
   test "$(stat -c %u /home/kasm-user/.local)" = "1000"
   test "$(stat -c %u /home/kasm-user/.local/bin/herdr)" = "1000"
   test "$(stat -c %a /home/kasm-user)" = "755"
+  test -f /home/kasm-user/.no_auto_tmux
   test -d /home/kasm-user/.config
   test -d /home/kasm-user/.cache
   test "$(stat -c %u /home/kasm-user/.config)" = "1000"

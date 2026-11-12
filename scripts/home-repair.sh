@@ -46,6 +46,14 @@ configure_home_profile() {
   home_repair_run_sudo chown "${user_id}:${user_group}" "${HOME}" 2>/dev/null || true
   home_repair_run_sudo chmod 0755 "${HOME}" 2>/dev/null || true
 
+  # Vast's .bashrc starts tmux automatically on SSH connections. Herdr is a
+  # terminal workspace manager itself; a nested tmux confuses its layout and
+  # clipboard handling. Opt out by default; set KASM_AUTO_TMUX=1 to keep it.
+  if [[ "${KASM_AUTO_TMUX:-0}" != "1" ]]; then
+    home_repair_run_sudo touch "${HOME}/.no_auto_tmux" 2>/dev/null || true
+    home_repair_run_sudo chown "${user_id}:${user_group}" "${HOME}/.no_auto_tmux" 2>/dev/null || true
+  fi
+
   # The template onstart may have linked ~/.cargo to the default profile. A
   # directory cannot be copied over that symlink, so remove only that exact
   # link before the no-clobber copy; user-created links are left alone.
