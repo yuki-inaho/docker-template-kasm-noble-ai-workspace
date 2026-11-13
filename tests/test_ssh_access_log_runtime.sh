@@ -12,7 +12,7 @@ if [[ "${1:-}" != --inside ]]; then
       -v "$repo_dir/tests/test_ssh_access_log_runtime.sh:/probe-test:ro" \
       "$image" /probe-test --inside
   done
-  for failure in bad-config symlink writer handoff handoff-disabled handoff-manual handoff-symlink handoff-bad-pid handoff-fallback; do
+  for failure in bad-config symlink writer concurrent handoff handoff-disabled handoff-manual handoff-symlink handoff-bad-pid handoff-fallback; do
     docker run --rm --network none --user root --entrypoint bash \
       -e ACCESS_LOG=1 -e PROBE_FAILURE="$failure" \
       -v "$repo_dir/scripts/kasm-remote-access.sh:/probe-helper:ro" \
@@ -50,6 +50,23 @@ install -d -m 0700 -o kasm-user -g kasm-user /home/kasm-user/.ssh
 ssh-keygen -q -t ed25519 -f /tmp/probe-key -N ''
 install -m 0600 -o kasm-user -g kasm-user /tmp/probe-key.pub /home/kasm-user/.ssh/authorized_keys
 ssh_args=(-q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -i /tmp/probe-key)
+if [[ "${PROBE_FAILURE:-}" == concurrent ]]; then
+  ACCESS_LOG=1 KASM_SSH_HANDOFF=1 bash /probe-helper start-ssh > /tmp/probe-start-a 2>&1 &
+  first=$!
+  ACCESS_LOG=1 KASM_SSH_HANDOFF=1 bash /probe-helper start-ssh > /tmp/probe-start-b 2>&1 &
+  second=$!
+  wait "$first"
+  wait "$second"
+  read -r listener < /run/sshd.pid
+  ss -H -ltnp 'sport = :22' | grep -q "pid=$listener,"
+  read -r writer < /run/kasm-sshd-log-writer.pid
+  kill -0 "$writer"
+  ssh "${ssh_args[@]}" kasm-user@127.0.0.1 true
+  grep -Eq '^20[0-9]{2}-.*\+0900 .*Accepted publickey' /var/log/kasm-access/sshd.log
+  grep -q 'SSH log writer already running' /tmp/probe-start-a /tmp/probe-start-b
+  echo 'concurrent startup serialized; logged SSH works: PASS'
+  exit 0
+fi
 if [[ "${PROBE_FAILURE:-}" == handoff* ]]; then
   ACCESS_LOG=0 bash /probe-helper start-ssh
   read -r old_listener < /run/sshd.pid
