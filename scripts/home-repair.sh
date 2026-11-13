@@ -70,6 +70,13 @@ configure_home_profile() {
     "${HOME}/.local/state" "${HOME}/.local/bin" "${HOME}/.opencode/bin" \
     2>/dev/null || true
 
+  # Kasm's upload service expects this directory but does not create it.
+  # Keep existing directories, files and symlinks, including their permissions.
+  if [[ ! -e "${HOME}/Uploads" ]] && [[ ! -L "${HOME}/Uploads" ]]; then
+    home_repair_run_sudo install -d -m 0755 -o "${user_id}" -g "${user_group}" \
+      "${HOME}/Uploads" 2>/dev/null || home_repair_log "Could not create Uploads"
+  fi
+
   # Vast.ai writes its own ~/.bashrc before Kasm copies the image profile, so
   # Kasm's "profile already exists" check skips the copy and the user home ends
   # up without the tools. Restore only missing entries; user files always win.

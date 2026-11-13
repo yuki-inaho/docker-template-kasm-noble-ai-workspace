@@ -79,6 +79,22 @@ class XfceHomeRepairTest(unittest.TestCase):
         self.assertTrue(link.is_symlink())
         self.assertEqual(list(destination.iterdir()), [sentinel])
 
+    def test_missing_upload_directory_is_created(self) -> None:
+        self.repair()
+        self.assertTrue((self.home / "Uploads").is_dir())
+
+    def test_existing_upload_directory_and_symlink_are_not_replaced(self) -> None:
+        destination = self.root / "user-uploads"
+        destination.mkdir(mode=0o700)
+        sentinel = destination / "sentinel"
+        sentinel.write_text("keep\n")
+        link = self.home / "Uploads"
+        link.symlink_to(destination, target_is_directory=True)
+        self.repair()
+        self.assertTrue(link.is_symlink())
+        self.assertEqual(sentinel.read_text(), "keep\n")
+        self.assertEqual(destination.stat().st_mode & 0o777, 0o700)
+
 
 if __name__ == "__main__":
     unittest.main()
