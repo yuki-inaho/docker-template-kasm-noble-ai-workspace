@@ -92,6 +92,20 @@ configure_home_profile() {
     fi
   fi
 
+  # The tool-copy shortcut above says nothing about the desktop. Populate a
+  # missing XFCE tree independently, before XFCE creates its own defaults.
+  # An existing directory or symlink is user state and must not be replaced.
+  if [[ -d "${default_profile}/.config/xfce4" ]] && \
+     [[ ! -L "${HOME}/.config" ]] && \
+     [[ ! -e "${HOME}/.config/xfce4" ]] && \
+     [[ ! -L "${HOME}/.config/xfce4" ]]; then
+    home_repair_log "Restoring missing XFCE profile"
+    if ! home_repair_run_sudo cp -a --no-clobber \
+        "${default_profile}/.config/xfce4" "${HOME}/.config/"; then
+      home_repair_log "Could not restore the XFCE profile"
+    fi
+  fi
+
   # `cp -a src/. dest/` can apply the source directory's ownership and mode to
   # dest, so restore the home ownership and 0755 mode after the copy as well.
   # OpenSSH StrictModes rejects a group/world-writable home.
