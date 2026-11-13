@@ -115,6 +115,11 @@ jobs:
             --mount type=bind,src="$PWD/scripts/test-ibus-default.sh",dst=/tmp/test-ibus-default.sh,readonly \
             --entrypoint bash local/kasm-runtime:test /tmp/test-ibus-default.sh
 
+      - name: Test fresh-home input initialization
+        run: |
+          python3 -m unittest discover -s tests -p 'test_xfce_home_repair.py' -v
+          python3 -m unittest discover -s tests -p 'test_ibus_initialization.py' -v
+
       - name: Verify startup updater on an already updated image
         run: bash scripts/test-tool-update-runtime.sh local/kasm-runtime:test
 

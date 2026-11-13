@@ -83,6 +83,28 @@ class XfceHomeRepairTest(unittest.TestCase):
         self.repair()
         self.assertTrue((self.home / "Uploads").is_dir())
 
+    def test_fresh_home_schedules_ibus_initialization_once(self) -> None:
+        self.repair()
+        pending = self.home / ".kasm-ibus-initialize"
+        self.assertTrue(pending.is_file())
+        pending.rename(self.home / ".kasm-ibus-initialized")
+        self.repair()
+        self.assertFalse(pending.exists())
+
+    def test_existing_input_preferences_are_preserved(self) -> None:
+        (self.home / ".config/dconf").mkdir(parents=True)
+        (self.home / ".config/dconf/user").write_text("user settings")
+        self.repair()
+        self.assertFalse((self.home / ".kasm-ibus-initialize").exists())
+        self.assertEqual((self.home / ".config/dconf/user").read_text(), "user settings")
+
+    def test_symlinked_config_does_not_schedule_ibus_initialization(self) -> None:
+        destination = self.root / "linked-config"
+        destination.mkdir()
+        (self.home / ".config").symlink_to(destination, target_is_directory=True)
+        self.repair()
+        self.assertFalse((self.home / ".kasm-ibus-initialize").exists())
+
     def test_existing_upload_directory_and_symlink_are_not_replaced(self) -> None:
         destination = self.root / "user-uploads"
         destination.mkdir(mode=0o700)

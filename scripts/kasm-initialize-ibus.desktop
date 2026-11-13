@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Initialize Japanese input for a new home
+Exec=/usr/local/bin/kasm-initialize-ibus
+OnlyShowIn=XFCE;
+X-GNOME-Autostart-enabled=true

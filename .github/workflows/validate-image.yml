@@ -79,6 +79,11 @@ jobs:
             --mount type=bind,src="$PWD/scripts/test-ibus-default.sh",dst=/tmp/test-ibus-default.sh,readonly \
             --entrypoint bash local/kasm-runtime:test /tmp/test-ibus-default.sh
 
+      - name: Test fresh-home input initialization
+        run: |
+          python3 -m unittest discover -s tests -p 'test_xfce_home_repair.py' -v
+          python3 -m unittest discover -s tests -p 'test_ibus_initialization.py' -v
+
       - name: Test tool update failure handling
         run: |
           docker run --rm --network none --user 1000 \

@@ -43,6 +43,20 @@ configure_home_profile() {
     return
   fi
 
+  # A fresh desktop needs Mozc selected once. Never reset an existing user's
+  # input preferences, including symlinked configuration paths.
+  local ime_pending="${HOME}/.kasm-ibus-initialize"
+  local ime_done="${HOME}/.kasm-ibus-initialized"
+  if [[ ! -L "${HOME}/.config" ]] && [[ ! -e "${ime_pending}" ]] && [[ ! -L "${ime_pending}" ]] && \
+     [[ ! -e "${ime_done}" ]] && [[ ! -L "${ime_done}" ]] && \
+     [[ ! -e "${HOME}/.config/dconf" ]] && [[ ! -L "${HOME}/.config/dconf" ]] && \
+     [[ ! -e "${HOME}/.config/ibus" ]] && [[ ! -L "${HOME}/.config/ibus" ]] && \
+     [[ ! -e "${HOME}/.config/mozc" ]] && [[ ! -L "${HOME}/.config/mozc" ]]; then
+    home_repair_run_sudo touch "${ime_pending}" && \
+      home_repair_run_sudo chown "${user_id}:${user_group}" "${ime_pending}" || \
+      home_repair_log "Could not schedule initial Mozc selection"
+  fi
+
   # The home directory itself must stay writable by the user even when another
   # startup script created it as root. OpenSSH StrictModes also rejects a
   # group/world-writable home, so keep it at 0755.
