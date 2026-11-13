@@ -81,9 +81,24 @@ start_ssh() {
   ssh-keygen -A >/dev/null
   if pgrep -x sshd >/dev/null 2>&1; then
     echo "sshd already running"
+    if [[ "${ACCESS_LOG:-0}" == "1" ]]; then
+      echo "sshd was already running; verify its log destination separately" >&2
+    fi
     return
   fi
-  /usr/sbin/sshd
+  if [[ "${ACCESS_LOG:-0}" == "1" ]]; then
+    install -d -m 0750 -o root -g "${SSH_USER}" /var/log/kasm-access
+    if [[ -L /var/log/kasm-access/sshd.log ]]; then
+      echo "refusing symlink for SSH log" >&2
+      return 1
+    fi
+    touch /var/log/kasm-access/sshd.log
+    chown root:"${SSH_USER}" /var/log/kasm-access/sshd.log
+    chmod 0640 /var/log/kasm-access/sshd.log
+    /usr/sbin/sshd -E /var/log/kasm-access/sshd.log
+  else
+    /usr/sbin/sshd
+  fi
   echo "sshd started on port 22"
 }
 
