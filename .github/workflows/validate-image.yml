@@ -73,6 +73,12 @@ jobs:
             --entrypoint python3 local/kasm-runtime:test \
             -m unittest discover -s tests -p test_kasmvnc_install_policy.py -v
 
+      - name: Verify IBus default and user override
+        run: |
+          docker run --rm --network none --user 0 \
+            --mount type=bind,src="$PWD/scripts/test-ibus-default.sh",dst=/tmp/test-ibus-default.sh,readonly \
+            --entrypoint bash local/kasm-runtime:test /tmp/test-ibus-default.sh
+
       - name: Test tool update failure handling
         run: |
           docker run --rm --network none --user 1000 \

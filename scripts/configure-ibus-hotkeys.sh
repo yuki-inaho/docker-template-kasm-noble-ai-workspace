@@ -27,10 +27,16 @@ if ! grep -Fqx 'user-db:user' "${ibus_profile}" || \
 fi
 
 cat > "${ibus_db_dir}/90-kasm-hotkeys" <<'SETTINGS'
+[desktop/ibus/general]
+enable-by-default=true
+
 [desktop/ibus/general/hotkey]
 trigger=['Control+space', 'Zenkaku_Hankaku']
 triggers=['<Control>space', '<Super>space', 'Zenkaku_Hankaku']
 SETTINGS
+
+# The default activates the input method on initial focus so Mozc receives
+# Zenkaku_Hankaku. Do not lock it: an explicit user setting must still win.
 
 # Keep Zenkaku_Hankaku because the JIS keyboard operator relies on it for
 # English/Japanese switching. Exclude Alt+grave, which caused the old
