@@ -106,6 +106,13 @@ jobs:
             PLAYWRIGHT_VERSION=1.64.1
             PLAYWRIGHT_CLI_VERSION=0.1.22
 
+      - name: Verify SSH access logging and session preservation
+        run: |
+          expected=$(sha256sum scripts/kasm-remote-access.sh)
+          actual=$(docker run --rm --network none --entrypoint sha256sum local/kasm-runtime:test /usr/local/bin/kasm-remote-access)
+          test "${expected%% *}" = "${actual%% *}"
+          bash tests/test_ssh_access_log_runtime.sh local/kasm-runtime:test
+
       - name: Verify HTTPS authentication and two browser viewers
         run: bash scripts/test-kasmvnc-runtime.sh local/kasm-runtime:test
 
