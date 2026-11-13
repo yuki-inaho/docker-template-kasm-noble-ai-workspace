@@ -76,59 +76,121 @@ set_tunnel_token() {
   echo "Run 'sudo kasm-remote-access start' to start the tunnel."
 }
 
+ssh_port_open() {
+  ss -H -ltn 'sport = :22' | grep -q .
+}
+
+ssh_listener_pid() {
+  local pid="" exe=""
+  [[ -r /run/sshd.pid ]] || return 1
+  read -r pid < /run/sshd.pid || return 1
+  [[ "$pid" =~ ^[0-9]+$ ]] && (( pid > 1 )) || return 1
+  [[ "$(stat -c %u "/proc/$pid")" == 0 ]] || return 1
+  exe="$(readlink -f "/proc/$pid/exe")" || return 1
+  [[ "$exe" == /usr/sbin/sshd ]] || return 1
+  ss -H -ltnp 'sport = :22' | grep -q "pid=$pid," || return 1
+  printf '%s\n' "$pid"
+}
+
+ssh_log_writer_alive() {
+  local listener="$1" writer="" listener_parent="" writer_parent=""
+  [[ -r /run/kasm-sshd-log-writer.pid ]] || return 1
+  read -r writer < /run/kasm-sshd-log-writer.pid || return 1
+  [[ "$writer" =~ ^[0-9]+$ ]] && kill -0 "$writer" 2>/dev/null || return 1
+  [[ "$(cat "/proc/$writer/comm" 2>/dev/null)" == bash ]] || return 1
+  listener_parent="$(ps -o ppid= -p "$listener" | tr -d ' ')"
+  writer_parent="$(ps -o ppid= -p "$writer" | tr -d ' ')"
+  [[ -n "$listener_parent" && "$listener_parent" == "$writer_parent" ]]
+}
+
+prepare_ssh_log() {
+  install -d -m 0750 -o root -g "${SSH_USER}" /var/log/kasm-access || return 1
+  if [[ -L /var/log/kasm-access/sshd.log ]]; then
+    echo "refusing symlink for SSH log" >&2
+    return 1
+  fi
+  touch /var/log/kasm-access/sshd.log || return 1
+  chown root:"${SSH_USER}" /var/log/kasm-access/sshd.log || return 1
+  chmod 0640 /var/log/kasm-access/sshd.log || return 1
+  /usr/sbin/sshd -t || { echo "invalid SSH configuration; not starting sshd" >&2; return 1; }
+}
+
+start_logged_ssh() {
+  # The timestamp is when the writer receives the line, in Japan time.
+  nohup setsid bash -c '
+    set -o pipefail
+    /usr/sbin/sshd -D -e 2>&1 | {
+      printf "%s\n" "$BASHPID" > /run/kasm-sshd-log-writer.pid
+      while IFS= read -r line; do
+        TZ=Asia/Tokyo printf "%(%Y-%m-%dT%H:%M:%S%z)T %s\n" -1 "$line"
+      done
+    } >> /var/log/kasm-access/sshd.log
+  ' 9>&- </dev/null >/dev/null 2>&1 &
+  for _ in {1..50}; do
+    local listener=""
+    if listener="$(ssh_listener_pid)" && ssh_log_writer_alive "$listener"; then
+      echo "sshd started on port 22 with access logging"
+      return 0
+    fi
+    sleep 0.1
+  done
+  echo "logged sshd did not become ready; inspect /var/log/kasm-access/sshd.log" >&2
+  return 1
+}
+
 start_ssh() {
+  # Only our helper operations take this lock; release it in the background
+  # writer so that subsequent checks cannot be blocked by the daemon.
+  exec 9>/run/kasm-remote-access.lock
+  flock -x -w 10 9 || { echo "SSH start lock unavailable" >&2; return 1; }
   install -d -m 0755 /run/sshd
   ssh-keygen -A >/dev/null
-  if pgrep -x sshd >/dev/null 2>&1; then
-    echo "sshd already running"
-    if [[ "${ACCESS_LOG:-0}" == "1" ]]; then
-      local writer_pid=""
-      [[ ! -r /run/kasm-sshd-log-writer.pid ]] || read -r writer_pid < /run/kasm-sshd-log-writer.pid || true
-      if [[ "$writer_pid" =~ ^[0-9]+$ ]] && kill -0 "$writer_pid" 2>/dev/null; then
+  local listener=""
+  if ssh_port_open; then
+    if [[ "${ACCESS_LOG:-0}" != "1" ]]; then
+      echo "sshd already running; no listener change requested"
+      return 0
+    fi
+    if [[ "${KASM_SSH_HANDOFF:-0}" != "1" ]]; then
+      if listener="$(ssh_listener_pid)" && ssh_log_writer_alive "$listener"; then
         echo "SSH log writer PID exists; verify recorded events separately" >&2
       else
         echo "SSH log writer unavailable; existing sshd was not restarted" >&2
       fi
+      return 0
     fi
-    return
-  fi
-  if [[ "${ACCESS_LOG:-0}" == "1" ]]; then
-    install -d -m 0750 -o root -g "${SSH_USER}" /var/log/kasm-access
-    if [[ -L /var/log/kasm-access/sshd.log ]]; then
-      echo "refusing symlink for SSH log" >&2
-      return 1
+    listener="$(ssh_listener_pid)" || { echo "SSH listener could not be verified; not changed" >&2; return 1; }
+    if ssh_log_writer_alive "$listener"; then
+      echo "SSH log writer already running"
+      return 0
     fi
-    touch /var/log/kasm-access/sshd.log
-    chown root:"${SSH_USER}" /var/log/kasm-access/sshd.log
-    chmod 0640 /var/log/kasm-access/sshd.log
-    if ! /usr/sbin/sshd -t; then
-      echo "invalid SSH configuration; not starting sshd" >&2
-      return 1
-    fi
-    # sshd -E does not timestamp its output. Run it in the foreground and
-    # timestamp each received log line without changing the default path.
-    nohup setsid bash -c '
-      set -o pipefail
-      /usr/sbin/sshd -D -e 2>&1 | {
-        printf "%s\n" "$BASHPID" > /run/kasm-sshd-log-writer.pid
-        while IFS= read -r line; do
-          TZ=Asia/Tokyo printf "%(%Y-%m-%dT%H:%M:%S%z)T %s\n" -1 "$line"
-        done
-      } >> /var/log/kasm-access/sshd.log
-    ' </dev/null >/dev/null 2>&1 &
-    for _ in {1..30}; do
-      if pgrep -x sshd >/dev/null 2>&1 && ss -H -ltn 'sport = :22' | grep -q .; then
-        echo "sshd started on port 22"
-        return
-      fi
+    # Validate everything possible while the original listener remains live.
+    prepare_ssh_log || return 1
+    kill -TERM "$listener" || return 1
+    for _ in {1..50}; do
+      ssh_port_open || break
       sleep 0.1
     done
-    echo "sshd did not start; inspect /var/log/kasm-access/sshd.log" >&2
+    if ssh_port_open; then
+      echo "port 22 remains occupied; no replacement attempted" >&2
+      return 1
+    fi
+    if start_logged_ssh; then return 0; fi
+    # Keep SSH reachable if the logging setup fails after the handoff.
+    if ! ssh_port_open; then /usr/sbin/sshd || true; fi
+    echo "SSH logging handoff failed; check access and logs" >&2
     return 1
+  fi
+  if [[ "${ACCESS_LOG:-0}" == "1" ]]; then
+    if ! prepare_ssh_log || ! start_logged_ssh; then
+      if ! ssh_port_open; then /usr/sbin/sshd || true; fi
+      echo "SSH logging setup failed; check access and logs" >&2
+      return 1
+    fi
   else
     /usr/sbin/sshd
+    echo "sshd started on port 22"
   fi
-  echo "sshd started on port 22"
 }
 
 start_tunnel() {
