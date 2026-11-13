@@ -82,7 +82,13 @@ start_ssh() {
   if pgrep -x sshd >/dev/null 2>&1; then
     echo "sshd already running"
     if [[ "${ACCESS_LOG:-0}" == "1" ]]; then
-      echo "sshd was already running; verify its log destination separately" >&2
+      local writer_pid=""
+      [[ ! -r /run/kasm-sshd-log-writer.pid ]] || read -r writer_pid < /run/kasm-sshd-log-writer.pid || true
+      if [[ "$writer_pid" =~ ^[0-9]+$ ]] && kill -0 "$writer_pid" 2>/dev/null; then
+        echo "SSH log writer PID exists; verify recorded events separately" >&2
+      else
+        echo "SSH log writer unavailable; existing sshd was not restarted" >&2
+      fi
     fi
     return
   fi
@@ -95,7 +101,30 @@ start_ssh() {
     touch /var/log/kasm-access/sshd.log
     chown root:"${SSH_USER}" /var/log/kasm-access/sshd.log
     chmod 0640 /var/log/kasm-access/sshd.log
-    /usr/sbin/sshd -E /var/log/kasm-access/sshd.log
+    if ! /usr/sbin/sshd -t; then
+      echo "invalid SSH configuration; not starting sshd" >&2
+      return 1
+    fi
+    # sshd -E does not timestamp its output. Run it in the foreground and
+    # timestamp each received log line without changing the default path.
+    nohup setsid bash -c '
+      set -o pipefail
+      /usr/sbin/sshd -D -e 2>&1 | {
+        printf "%s\n" "$BASHPID" > /run/kasm-sshd-log-writer.pid
+        while IFS= read -r line; do
+          TZ=Asia/Tokyo printf "%(%Y-%m-%dT%H:%M:%S%z)T %s\n" -1 "$line"
+        done
+      } >> /var/log/kasm-access/sshd.log
+    ' </dev/null >/dev/null 2>&1 &
+    for _ in {1..30}; do
+      if pgrep -x sshd >/dev/null 2>&1 && ss -H -ltn 'sport = :22' | grep -q .; then
+        echo "sshd started on port 22"
+        return
+      fi
+      sleep 0.1
+    done
+    echo "sshd did not start; inspect /var/log/kasm-access/sshd.log" >&2
+    return 1
   else
     /usr/sbin/sshd
   fi
